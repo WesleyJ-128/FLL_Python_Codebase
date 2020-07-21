@@ -101,10 +101,11 @@ class Robot:
         right_motor_now = self.rm.degrees
         left_motor_change = left_motor_now - left_motor_start
         right_motor_change = right_motor_now - right_motor_start
+        sign = Speed / abs(Speed)
         # Find number of degrees that motors need to rotate to reach the desired number of cm.
         target = (Distance * 360) / self.WheelCircumference
         # Find the average of the left and right encoders, as they could be different from PID correction
-        avg = ((left_motor_change + right_motor_change) / 2)
+        avg = abs((left_motor_change + right_motor_change) / 2)
         # Initialize variables for PID control
         integral = 0.0
         last_error = 0.0
@@ -119,7 +120,7 @@ class Robot:
             derivative = error - last_error
             last_error = error
             # Calculate Steering value based on PID components and kp, ki, and kd
-            turn_native_units = max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
+            turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
 
             # Check if the motors will stop at the end.  If not, the speed will be adjusted to come to a smooth stop.
             if Stop == False:
@@ -143,7 +144,7 @@ class Robot:
             right_motor_now = self.rm.degrees
             left_motor_change = left_motor_now - left_motor_start
             right_motor_change = right_motor_now - right_motor_start
-            avg = ((left_motor_change + right_motor_change) / 2)
+            avg = abs((left_motor_change + right_motor_change) / 2)
         
         # If the robot is to stop, stop the motors.  Otherwise, leave the motors on and return.
         if not Stop == False:
@@ -153,7 +154,7 @@ class Robot:
         if currentDifference == 0:
             return(5)
         currentDifference = abs(currentDifference)
-        return(min([50, max[5, 0.125 * currentDifference + 4.875]]))
+        return(min([50, max([5, ((0.125 * currentDifference) + 4.875)])]))
 
     def TurnToHeading(self, Heading):
         sign = 1
@@ -166,6 +167,7 @@ class Robot:
             if ((sign > 0) and (currentDifference < 0)) or ((sign < 0) and (currentDifference > 0)):
                 sign *= -1
             power = sign * self.degrees2power(currentDifference)
-            self.tank.on(-1 * power, power)
+            self.tank.on(power, -1 * power)
+            currentHeading = self.correctedAngle()
         self.tank.stop()
     
