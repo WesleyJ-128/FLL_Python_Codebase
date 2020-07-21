@@ -202,15 +202,77 @@ class Robot:
         self.tank.stop()
     
     def DriveBump(self, Heading, Speed):
-        lsrs = self.steer.get_speed_steering(0, Speed)
+        """
+        Moves the robot in a specified direction at a specified speed until it hits something, while using the gyro sensor to keep the robot moving in a straight line.
+
+        ``Heading``: The angle at which to drive, with the direction the gyro was last calibrated in being zero.
+        ``Speed``: The speed at which to drive, in motor percentage (same speed units as EV3-G).  A negative value will make the robot drive backwards.
+        """           
+        
+        # Ensure values are within reasonable limits, and change them if necessary (Idiotproofing).
+        if Speed > 75:
+            Speed = 75
+            print("Speed must be between -75 and 75 (inclusive).")
+        elif Speed < -75:
+            Speed = -75
+            print("Speed must be between -75 and 75 (inclusive).")
+
+        # Check and store the sign of the input speed (for PID correction), and convert the target speed to encoder ticks per second
+        sign = Speed * -1 / abs(Speed)
+        target = abs((1050 * Speed) / 100)
+
+        # Initialize variables for PID control
+        integral = 0.0
+        last_error = 0.0
+        derivative = 0.0
+
+        # Read the gyro
+        current_angle = self.correctedAngle()
+
+        # Calculate the PID components
+        error = current_angle - Heading
+        integral = integral + error
+        derivative = error - last_error
+        last_error = error
+
+        # Calculate Steering value based on PID components and kp, ki, and kd
+        turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
+
+        # Start the motors without speed regulation, using the Steering value and Speed
+        lsrs = self.steer.get_speed_steering(turn_native_units, Speed)
         lsNative = lsrs[0]
         rsNative = lsrs[1]
-        target = (1050 * Speed) / 100
         self.lm.on(SpeedNativeUnits(lsNative))
         self.rm.on(SpeedNativeUnits(rsNative))
+
+        # Wait for motors to get up to speed, then check and store the average speed (between the two motors)
         time.sleep(1)
-        avgSpd = (self.lm.speed + self.rm.speed) / 2
+        avgSpd = abs((self.lm.speed + self.rm.speed) / 2)
+
+        # Check if the motors have slowed down (because the robot hit something)
         while avgSpd > 0.90 * target:
-            avgSpd = (self.lm.speed + self.rm.speed) / 2
+            # Read the gyro
+            current_angle = self.correctedAngle()
+
+            # Calculate the PID components
+            error = current_angle - Heading
+            integral = integral + error
+            derivative = error - last_error
+            last_error = error
+
+            # Calculate Steering value based on PID components and kp, ki, and kd
+            turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
+
+            # Start the motors without speed regulation, using the Steering value and Speed
+            lsrs = self.steer.get_speed_steering(turn_native_units, Speed)
+            lsNative = lsrs[0]
+            rsNative = lsrs[1]
+            self.lm.on(SpeedNativeUnits(lsNative))
+            self.rm.on(SpeedNativeUnits(rsNative))
+
+            # Check and store the average speed again
+            avgSpd = abs((self.lm.speed + self.rm.speed) / 2)
+        
+        # Stop the motors
         self.lm.stop()
         self.rm.stop()

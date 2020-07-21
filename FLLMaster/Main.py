@@ -7,4 +7,4 @@ R1.gs.calibrate
 R1.zeroGyro()
 #R1.spkr.speak("Starting")
 R1.spkr.beep()
-R1.DriveBump(0, 30)
+R1.DriveBump(0, -30)
