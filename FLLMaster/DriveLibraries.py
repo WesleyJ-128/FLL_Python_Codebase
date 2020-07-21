@@ -33,6 +33,13 @@ class Robot:
         self.TouchPort = eval(conf.get('Sensors', 'TouchPort'))
         self.UltrasonicPort = eval(conf.get('Sensors', 'UltrasonicPort'))
 
+        self.AuxMotor1 = eval(conf.get('AuxMotors', 'AuxMotor1'))
+        self.AuxMotor2 = eval(conf.get('AuxMotors', 'AuxMotor2'))
+
+        #self.m1 = MediumMotor(self.AuxMotor1)
+        #self.m2 = MediumMotor(self.AuxMotor2)
+
+
         self.cs = ColorSensor(self.ColorPort)
         self.gs = GyroSensor(self.GyroPort)
         self.ir = InfraredSensor(self.InfraredPort)
@@ -276,3 +283,39 @@ class Robot:
         # Stop the motors
         self.lm.stop()
         self.rm.stop()
+
+    def AuxMotorBumpStop(self, Speed, Threshold, Port):
+        if Speed > 75:
+            Speed = 75
+            print("Speed must be between -75 and 75 (inclusive).")
+        elif Speed < -75:
+            Speed = -75
+            print("Speed must be between -75 and 75 (inclusive).")
+        if Threshold <= 0:
+            print("Threshold must be greater than zero and less than one")
+            return
+        elif Threshold > 100:
+            print("Threshold must be greater than zero and less than or equal to 100")
+            return
+        
+        target = abs((self.lm.max_speed * Speed) / 100)
+        
+        if Port == self.AuxMotor1:
+            msNative = (Speed * self.m1.max_speed) / 100
+            self.m1.on(SpeedNativeUnits(msNative))
+            time.sleep(0.5)
+            motrspeed = abs(self.m1.speed)
+        else:
+            msNative = (Speed * self.m2.max_speed) / 100
+            self.m2.on(SpeedNativeUnits(msNative))
+            time.sleep(0.5)
+            motrspeed = abs(self.m2.speed)
+        while motrspeed > (target * Threshold) / 100:
+            if Port == self.AuxMotor1:
+                motrspeed = abs(self.m1.speed)
+            else:
+                motrspeed = abs(self.m2.speed)
+        if Port == self.AuxMotor1:
+            self.m1.off()
+        else:
+            self.m2.off()
