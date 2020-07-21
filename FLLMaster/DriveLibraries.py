@@ -219,7 +219,7 @@ class Robot:
 
         # Check and store the sign of the input speed (for PID correction), and convert the target speed to encoder ticks per second
         sign = Speed * -1 / abs(Speed)
-        target = abs((1050 * Speed) / 100)
+        target = abs((self.lm.max_speed * Speed) / 100)
 
         # Initialize variables for PID control
         integral = 0.0
