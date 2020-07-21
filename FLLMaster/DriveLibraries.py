@@ -64,7 +64,7 @@ class Robot:
     def correctedAngle(self):
         # Multiply the gyro angle by -1 if the gyro is mounted upside-down relative to the motors in the robot.
         # GyroInvertedNum is set up in __init__()
-        return (self.gs.angle * self.GyroInvertedNum)
+        return(self.gs.angle * self.GyroInvertedNum)
 
     def zeroGyro(self):
         # Reset the gyro angle to zero by switching modes. gyro.reset would have been used instead of this function, but it does not work
@@ -81,7 +81,6 @@ class Robot:
         ``Stop``: Stop motors after completion.  If ``FALSE``, motors will continue running after ``Distance`` has been traveled.  Otherwise, motors will stop after ``Distance`` cm.
         """
         # Ensure values are within reasonable limits, and change them if necessary (Idiotproofing).
-        Heading = math.fmod(Heading, 360)
         if Distance <= 0:
             print("Distance must be greater than zero.  Use negative speed to drive backwards.")
             return
@@ -160,9 +159,10 @@ class Robot:
 
     def GyroTurn(self, Heading):
         sign = 1
-        Heading = math.fmod(Heading, 360)
+
         if Heading - self.correctedAngle() == 0:
             return
+        
         currentHeading = self.correctedAngle()
         while (currentHeading > 0.5 + Heading) or (currentHeading < Heading - 0.5):
             currentDifference = Heading - currentHeading
@@ -200,3 +200,17 @@ class Robot:
                 dummy = 1
         
         self.tank.stop()
+    
+    def DriveBump(self, Heading, Speed):
+        lsrs = self.steer.get_speed_steering(0, Speed)
+        lsNative = lsrs[0]
+        rsNative = lsrs[1]
+        target = (1050 * Speed) / 100
+        self.lm.on(SpeedNativeUnits(lsNative))
+        self.rm.on(SpeedNativeUnits(rsNative))
+        time.sleep(1)
+        avgSpd = (self.lm.speed + self.rm.speed) / 2
+        while avgSpd > 0.90 * target:
+            avgSpd = (self.lm.speed + self.rm.speed) / 2
+        self.lm.stop()
+        self.rm.stop()
