@@ -44,9 +44,7 @@ class Robot:
         self.lm = LargeMotor(self.LeftMotor)
         self.rm = LargeMotor(self.RightMotor)
 
-        self.spkr.speak("Robot object instantiated successfully")
-
-        if self.MotorInverted:
+        if self.MotorInverted ^ (self.GearRatio / abs(self.GearRatio) == -1):
             self.lm.polarity = "inversed"
             self.rm.polarity = "inversed"
             self.tank.set_polarity = "inversed"
@@ -60,12 +58,16 @@ class Robot:
         else:
             self.GyroInvertedNum = 1
         
+        #self.spkr.speak("Robot object instantiated")
+        self.spkr.beep()
+
     def correctedAngle(self):
         # Multiply the gyro angle by -1 if the gyro is mounted upside-down relative to the motors in the robot.
         # GyroInvertedNum is set up in __init__()
         return (self.gs.angle * self.GyroInvertedNum)
 
     def zeroGyro(self):
+        # Reset the gyro angle to zero by switching modes. gyro.reset would have been used instead of this function, but it does not work
         self.gs._ensure_mode(self.gs.MODE_GYRO_RATE)
         self.gs._ensure_mode(self.gs.MODE_GYRO_ANG)
 
@@ -156,7 +158,7 @@ class Robot:
         currentDifference = abs(currentDifference)
         return(min([50, max([5, ((0.125 * currentDifference) + 4.875)])]))
 
-    def TurnToHeading(self, Heading):
+    def GyroTurn(self, Heading):
         sign = 1
         Heading = math.fmod(Heading, 360)
         if Heading - self.correctedAngle() == 0:
@@ -170,4 +172,31 @@ class Robot:
             self.tank.on(power, -1 * power)
             currentHeading = self.correctedAngle()
         self.tank.stop()
-    
+
+    def ArcTurn(self, Degrees, Radius, Speed):
+        if Speed > 75:
+            Speed = 75
+            print("Speed must be between -75 and 75 (inclusive).")
+        elif Speed < -75:
+            Speed = -75
+            print("Speed must be between -75 and 75 (inclusive).")
+        if Radius <= 0:
+            print("Radius must be greater than zero.  Use negative degrees to turn the opposite direction.")
+            return
+        math.fmod(Degrees, 360)
+
+        startHeading = self.correctedAngle()
+
+        if ((Degrees > 0) and (Speed > 0)) or ((Degrees < 0) and (Speed < 0)):
+            self.tank.on(Speed, (Radius - self.WidthBetweenWheels) * Speed / Radius)
+        else:
+            self.tank.on((Radius - self.WidthBetweenWheels) * Speed / Radius, Speed)
+        
+        if Degrees > 0:
+            while (self.correctedAngle() - startHeading) < Degrees:
+                dummy = 1
+        else:
+            while (self.correctedAngle() - startHeading) > Degrees:
+                dummy = 1
+        
+        self.tank.stop()
