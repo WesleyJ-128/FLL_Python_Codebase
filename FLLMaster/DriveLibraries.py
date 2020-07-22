@@ -7,7 +7,9 @@ class Robot:
     from ev3dev2.sensor.lego import ColorSensor, GyroSensor, InfraredSensor, TouchSensor, UltrasonicSensor
     from ev3dev2.sensor import INPUT_1, INPUT_2, INPUT_3, INPUT_4
     from ev3dev2.sound import Sound
+    from ev3dev2.button import Button
     import math
+    
     def __init__(self, filename):
         from configparser import SafeConfigParser
         conf = SafeConfigParser()
@@ -16,6 +18,7 @@ class Robot:
         self.ForFLL = bool(conf.get('Other', 'ForFLL') == "TRUE")
 
         self.spkr = self.Sound()
+        self.btn = self.Button()
         self.LeftMotor = eval(conf.get('Drivebase', 'LeftMotorPort'))
         self.RightMotor = eval(conf.get('Drivebase', 'RightMotorPort'))
         self.WheelCircumference = float(conf.get('Drivebase', 'WheelCircumference'))
@@ -67,6 +70,25 @@ class Robot:
         
         #self.spkr.speak("Robot object instantiated")
         self.spkr.beep()
+
+    def reflectCal(self):
+        global reflHighVal
+        global reflLowVal
+        global reflRate
+        self.spkr.speak("Show me white")
+        self.btn.wait_for_bump('enter')
+        reflHighVal = (self.cs.reflected_light_intensity)
+        self.spkr.beep()
+        self.spkr.speak("Show me black")
+        self.btn.wait_for_bump('enter')
+        reflLowVal = self.cs.reflected_light_intensity
+        self.spkr.beep()
+        reflRate = 100 / (reflHighVal - reflLowVal)
+
+    @property
+    def correctedReflectedLightIntensity(self):
+        value = min([100, max([0, (self.cs.reflected_light_intensity * reflRate) + (-reflLowVal * reflRate)])])
+        return(value)
 
     def correctedAngle(self):
         # Multiply the gyro angle by -1 if the gyro is mounted upside-down relative to the motors in the robot.
@@ -319,3 +341,48 @@ class Robot:
             self.m1.off()
         else:
             self.m2.off()
+    
+    def LineStop(self, Heading, Speed, Stop):
+        """
+        Moves the robot in a specified direction at a specified speed until a line (White-Black) is seen, while using the gyro sensor to keep the robot moving in a straight line.
+
+        ``Heading``: The angle at which to drive, with the direction the gyro was last calibrated in being zero.
+        ``Speed``: The speed at which to drive, in motor percentage (same speed units as EV3-G).  A negative value will make the robot drive backwards.
+        ``Stop``: Stop motors after completion.  If ``FALSE``, motors will continue running after ``Distance`` has been traveled.  Otherwise, motors will stop after ``Distance`` cm.
+        """
+        # Ensure values are within reasonable limits, and change them if necessary (Idiotproofing).
+        if Speed > 75:
+            Speed = 75
+            print("Speed must be between -75 and 75 (inclusive).")
+        elif Speed < -75:
+            Speed = -75
+            print("Speed must be between -75 and 75 (inclusive).")
+
+        sign = Speed / abs(Speed)
+
+
+
+        # Initialize variables for PID control
+        integral = 0.0
+        last_error = 0.0
+        derivative = 0.0
+        # Check if the motors have gone far enough
+        while avg < target:
+            # Read the gyro
+            current_angle = self.correctedAngle()
+
+            # Calculate the PID components
+            error = current_angle - Heading
+            integral = integral + error
+            derivative = error - last_error
+            last_error = error
+
+            # Calculate Steering value based on PID components and kp, ki, and kd
+            turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
+
+            # Start the motors, using the steering value calculated by the PID control, and the input speed multiplied by speedMult (0 - 1, see above).
+            self.steer.on(-turn_native_units, (Speed * speedMult))
+        
+        # If the robot is to stop, stop the motors.  Otherwise, leave the motors on and return.
+        if not Stop == False:
+            self.steer.stop()
