@@ -8,6 +8,7 @@ class Robot:
     from ev3dev2.sensor import INPUT_1, INPUT_2, INPUT_3, INPUT_4
     from ev3dev2.sound import Sound
     from ev3dev2.button import Button
+    from ev3dev2.led import Leds, LED_COLORS, LED_DEFAULT_COLOR, LED_GROUPS, LEDS
     import math
     
     def __init__(self, filename):
@@ -19,6 +20,8 @@ class Robot:
 
         self.spkr = self.Sound()
         self.btn = self.Button()
+        self.led = self.Leds()
+
         self.LeftMotor = eval(conf.get('Drivebase', 'LeftMotorPort'))
         self.RightMotor = eval(conf.get('Drivebase', 'RightMotorPort'))
         self.WheelCircumference = float(conf.get('Drivebase', 'WheelCircumference'))
@@ -54,6 +57,9 @@ class Robot:
         self.lm = LargeMotor(self.LeftMotor)
         self.rm = LargeMotor(self.RightMotor)
 
+        self.gs._ensure_mode(self.gs.MODE_GYRO_G_A)
+        self.cs._ensure_mode(self.cs.MODE_COL_REFLECT)
+
         if self.MotorInverted ^ (self.GearRatio / abs(self.GearRatio) == -1):
             self.lm.polarity = "inversed"
             self.rm.polarity = "inversed"
@@ -68,7 +74,6 @@ class Robot:
         else:
             self.GyroInvertedNum = 1
         
-        #self.spkr.speak("Robot object instantiated")
         self.spkr.beep()
 
     def reflectCal(self):
@@ -86,19 +91,20 @@ class Robot:
         reflRate = 100 / (reflHighVal - reflLowVal)
 
     @property
-    def correctedReflectedLightIntensity(self):
+    def correctedRLI(self):
         value = min([100, max([0, (self.cs.reflected_light_intensity * reflRate) + (-reflLowVal * reflRate)])])
         return(value)
 
+    @property
     def correctedAngle(self):
         # Multiply the gyro angle by -1 if the gyro is mounted upside-down relative to the motors in the robot.
         # GyroInvertedNum is set up in __init__()
-        return(self.gs.angle * self.GyroInvertedNum)
+        return(self.gs.angle_and_rate[0] * self.GyroInvertedNum)
 
     def zeroGyro(self):
         # Reset the gyro angle to zero by switching modes. gyro.reset would have been used instead of this function, but it does not work
         self.gs._ensure_mode(self.gs.MODE_GYRO_RATE)
-        self.gs._ensure_mode(self.gs.MODE_GYRO_ANG)
+        self.gs._ensure_mode(self.gs.MODE_GYRO_G_A)
 
     def DriveAtHeading(self, Heading, Distance, Speed, Stop):
         """
@@ -131,24 +137,32 @@ class Robot:
         right_motor_now = self.rm.degrees
         left_motor_change = left_motor_now - left_motor_start
         right_motor_change = right_motor_now - right_motor_start
+
+        # Determine the sign of the speed, for PID correction
         sign = Speed / abs(Speed)
+
         # Find number of degrees that motors need to rotate to reach the desired number of cm.
         target = (Distance * 360) / self.WheelCircumference
+
         # Find the average of the left and right encoders, as they could be different from PID correction
         avg = abs((left_motor_change + right_motor_change) / 2)
+
         # Initialize variables for PID control
         integral = 0.0
         last_error = 0.0
         derivative = 0.0
+
         # Check if the motors have gone far enough
         while avg < target:
             # Read the gyro
-            current_angle = self.correctedAngle()
+            current_angle = self.correctedAngle
+
             # Calculate the PID components
             error = current_angle - Heading
             integral = integral + error
             derivative = error - last_error
             last_error = error
+
             # Calculate Steering value based on PID components and kp, ki, and kd
             turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
 
@@ -189,17 +203,17 @@ class Robot:
     def GyroTurn(self, Heading):
         sign = 1
 
-        if Heading - self.correctedAngle() == 0:
+        if Heading - self.correctedAngle == 0:
             return
         
-        currentHeading = self.correctedAngle()
+        currentHeading = self.correctedAngle
         while (currentHeading > 0.5 + Heading) or (currentHeading < Heading - 0.5):
             currentDifference = Heading - currentHeading
             if ((sign > 0) and (currentDifference < 0)) or ((sign < 0) and (currentDifference > 0)):
                 sign *= -1
             power = sign * self.degrees2power(currentDifference)
             self.tank.on(power, -1 * power)
-            currentHeading = self.correctedAngle()
+            currentHeading = self.correctedAngle
         self.tank.stop()
 
     def ArcTurn(self, Degrees, Radius, Speed):
@@ -214,7 +228,7 @@ class Robot:
             return
         math.fmod(Degrees, 360)
 
-        startHeading = self.correctedAngle()
+        startHeading = self.correctedAngle
 
         if ((Degrees > 0) and (Speed > 0)) or ((Degrees < 0) and (Speed < 0)):
             self.tank.on(Speed, (Radius - self.WidthBetweenWheels) * Speed / Radius)
@@ -222,10 +236,10 @@ class Robot:
             self.tank.on((Radius - self.WidthBetweenWheels) * Speed / Radius, Speed)
         
         if Degrees > 0:
-            while (self.correctedAngle() - startHeading) < Degrees:
+            while (self.correctedAngle - startHeading) < Degrees:
                 dummy = 1
         else:
-            while (self.correctedAngle() - startHeading) > Degrees:
+            while (self.correctedAngle - startHeading) > Degrees:
                 dummy = 1
         
         self.tank.stop()
@@ -256,7 +270,7 @@ class Robot:
         derivative = 0.0
 
         # Read the gyro
-        current_angle = self.correctedAngle()
+        current_angle = self.correctedAngle
 
         # Calculate the PID components
         error = current_angle - Heading
@@ -281,7 +295,7 @@ class Robot:
         # Check if the motors have slowed down (because the robot hit something)
         while avgSpd > 0.90 * target:
             # Read the gyro
-            current_angle = self.correctedAngle()
+            current_angle = self.correctedAngle
 
             # Calculate the PID components
             error = current_angle - Heading
@@ -358,18 +372,23 @@ class Robot:
             Speed = -75
             print("Speed must be between -75 and 75 (inclusive).")
 
+        # Check and store the sign of the input speed for PID correction
         sign = Speed / abs(Speed)
 
+        # Set the brick light to solid amber
+        #EV3.SetLEDColor("ORANGE", "NORMAL")
 
-
-        # Initialize variables for PID control
+        # Initialize variables for PID control and end checking
         integral = 0.0
         last_error = 0.0
         derivative = 0.0
+        end = False
+        seenWhite = False
+
         # Check if the motors have gone far enough
-        while avg < target:
+        while not end:
             # Read the gyro
-            current_angle = self.correctedAngle()
+            current_angle = self.correctedAngle
 
             # Calculate the PID components
             error = current_angle - Heading
@@ -381,8 +400,20 @@ class Robot:
             turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
 
             # Start the motors, using the steering value calculated by the PID control, and the input speed multiplied by speedMult (0 - 1, see above).
-            self.steer.on(-turn_native_units, (Speed * speedMult))
+            self.steer.on(-turn_native_units, (Speed))
+
+            # Check if the sensor is seeing white
+            if self.correctedRLI >= 95:
+                self.spkr.beep(play_type=1)
+                seenWhite = True
+            elif (self.correctedRLI <= 10) and seenWhite:
+                end = True
+            else:
+                seenWhite = False
         
-        # If the robot is to stop, stop the motors.  Otherwise, leave the motors on and return.
+        # If the robot is to stop, stop the motors.  Otherwise, leave the motors on.
         if not Stop == False:
             self.steer.stop()
+        
+        # Set the brick light back to green flashing
+        #EVS.SetLEDColor("GREEN", "PULSE")
