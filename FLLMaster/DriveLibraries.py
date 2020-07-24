@@ -38,6 +38,9 @@ class Robot:
         self.InfraredPort = eval(conf.get('Sensors', 'InfraredPort'))
         self.TouchPort = eval(conf.get('Sensors', 'TouchPort'))
         self.UltrasonicPort = eval(conf.get('Sensors', 'UltrasonicPort'))
+        self.kpLine = float(conf.get('Sensors', 'kpLine'))
+        self.kiLine = float(conf.get('Sensors', 'kiLine'))
+        self.kdLine = float(conf.get('Sensors', 'kdLine'))
 
         self.AuxMotor1 = eval(conf.get('AuxMotors', 'AuxMotor1'))
         self.AuxMotor2 = eval(conf.get('AuxMotors', 'AuxMotor2'))
@@ -80,11 +83,11 @@ class Robot:
         global reflHighVal
         global reflLowVal
         global reflRate
-        self.spkr.speak("Show me white")
+        self.spkr.beep('-f 880')
         self.btn.wait_for_bump('enter')
         reflHighVal = (self.cs.reflected_light_intensity)
         self.spkr.beep()
-        self.spkr.speak("Show me black")
+        self.spkr.beep('-f 220')
         self.btn.wait_for_bump('enter')
         reflLowVal = self.cs.reflected_light_intensity
         self.spkr.beep()
@@ -423,4 +426,82 @@ class Robot:
         # Set the brick light back to green flashing
         #EVS.SetLEDColor("GREEN", "PULSE")
     
-    def LineFollow(self, Speed, Stop):
+    def LineFollow(self, Distance, Speed, Stop):
+        """
+        Follows the edge of a line for a specific distance at a specific speed.
+
+        ``Distance``: The distance to drive, in centimeters (positive only).
+        ``Speed``: The speed at which to drive, in motor percentage (same speed units as EV3-G).  (Positive only; there's no going back)
+        ``Stop``: Stop motors after completion.  If ``FALSE``, motors will continue running after ``Distance`` has been traveled.  Otherwise, motors will stop after ``Distance`` cm.
+        """
+        # Ensure values are within reasonable limits, and change them if necessary (Idiotproofing).
+        if Speed > 50:
+            Speed = 50
+            print("Speed must be between -50 and 50 (inclusive).")
+        elif Speed < -50:
+            Speed = -50
+            print("Speed must be between -50 and 50 (inclusive).")
+
+        # "Reset" motor encoders by subtracting start values
+        left_motor_start = self.lm.degrees
+        right_motor_start = self.rm.degrees
+        left_motor_now = self.lm.degrees
+        right_motor_now = self.rm.degrees
+        left_motor_change = left_motor_now - left_motor_start
+        right_motor_change = right_motor_now - right_motor_start
+
+        # Determine the sign of the speed, for PID correction
+        sign = Speed / abs(Speed)
+
+        # Find number of degrees that motors need to rotate to reach the desired number of cm.
+        target = (Distance * 360) / self.WheelCircumference
+
+        # Find the average of the left and right encoders, as they could be different from PID correction
+        avg = abs((left_motor_change + right_motor_change) / 2)
+
+        # Initialize variables for PID control
+        integral = 0.0
+        last_error = 0.0
+        derivative = 0.0
+
+        # Check if the motors have gone far enough
+        while avg < target:
+            # Read the gyro
+            current_RLI = self.correctedRLI
+
+            # Calculate the PID components
+            error = 50 - current_RLI
+            integral = integral + error
+            derivative = error - last_error
+            last_error = error
+
+            # Calculate Steering value based on PID components and kp, ki, and kd
+            turn_native_units = sign * max([min([(self.kpLine * error) + (self.kiLine * integral) + (self.kdLine * derivative), 100]), -100])
+
+            # Check if the motors will stop at the end.  If not, the speed will be adjusted to come to a smooth stop.
+            if Stop == False:
+                speedMult = 1
+            else:
+                # Check if the robot has gone 70% or more of the distance.  If so, start slowing down
+                if (target - avg) <= (0.3 * target):
+                    # Calculate the pecrentage of the distance left to travel
+                    targDist = 1 - (avg / target)
+                    # Calculate speedMult based on pecentage; linear function was designed to bring the robot to a
+                    # smooth stop while still reaching the target.
+                    speedMult = ((8 / 3) * targDist) + 0.2
+                else:
+                    speedMult = 1
+
+            # Start the motors, using the steering value calculated by the PID control, and the input speed multiplied by speedMult (0 - 1, see above).
+            self.steer.on(-turn_native_units, (Speed * speedMult))
+
+            # Update corrected encoder values
+            left_motor_now = self.lm.degrees
+            right_motor_now = self.rm.degrees
+            left_motor_change = left_motor_now - left_motor_start
+            right_motor_change = right_motor_now - right_motor_start
+            avg = abs((left_motor_change + right_motor_change) / 2)
+        
+        # If the robot is to stop, stop the motors.  Otherwise, leave the motors on and return.
+        if not Stop == False:
+            self.steer.stop()
