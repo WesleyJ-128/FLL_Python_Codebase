@@ -375,6 +375,9 @@ class Robot:
         # Check and store the sign of the input speed for PID correction
         sign = Speed / abs(Speed)
 
+        # Set the color sensor to "Color" mode
+        self.cs._ensure_mode(self.cs.MODE_COL_COLOR)
+
         # Set the brick light to solid amber
         #EV3.SetLEDColor("ORANGE", "NORMAL")
 
@@ -403,11 +406,13 @@ class Robot:
             self.steer.on(-turn_native_units, (Speed))
 
             # Check if the sensor is seeing white
-            if self.correctedRLI >= 95:
-                self.spkr.beep(play_type=1)
+            color = self.cs.color
+            if color == self.cs.COLOR_WHITE:
                 seenWhite = True
-            elif (self.correctedRLI <= 10) and seenWhite:
+            elif (color == self.cs.COLOR_BLACK) and seenWhite:
                 end = True
+            elif color == self.cs.COLOR_BLUE:
+                seenWhite = seenWhite
             else:
                 seenWhite = False
         
@@ -417,3 +422,5 @@ class Robot:
         
         # Set the brick light back to green flashing
         #EVS.SetLEDColor("GREEN", "PULSE")
+    
+    def LineFollow(self, Speed, Stop):
