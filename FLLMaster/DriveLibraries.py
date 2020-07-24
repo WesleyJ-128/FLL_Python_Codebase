@@ -10,6 +10,7 @@ class Robot:
     from ev3dev2.button import Button
     from ev3dev2.led import Leds, LED_COLORS, LED_DEFAULT_COLOR, LED_GROUPS, LEDS
     import math
+    import time
     
     def __init__(self, filename):
         from configparser import SafeConfigParser

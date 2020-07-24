@@ -13,22 +13,16 @@ R1.btn.wait_for_bump('enter')
 # Write Code Here ----------------------------------------
 
 def left(state):
-    if state:
-        R1.kpLine = R1.kpLine - 0.01
-        print(R1.kpLine)
-
+    pass
 def right(state):
-    if state:
-        R1.kpLine = R1.kpLine + 0.01
-        print(R1.kpLine)
-    
+    pass
 def up(state):
     pass
 def down(state):
     pass
 def enter(state):
     if state:
-        R1.LineFollow(50, 20, True)
+        R1.DriveAtHeading(0, 50, 50, True)
 def backspace(state):
     pass
 
