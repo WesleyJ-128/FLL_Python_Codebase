@@ -1,40 +1,48 @@
 #!/usr/bin/env python3
-from DriveLibraries import *
+from MenuLib import init
+import MenuLib
 from time import sleep
-from ev3dev2.display import *
-disp = Display()
-
-R1 = Robot('robot.cfg')
-R1.gs.calibrate()
-sleep(1)
-R1.spkr.beep()
-R1.reflectCal()
-R1.btn.wait_for_bump('enter')
 # Write Code Here ----------------------------------------
 
+init()
+from MenuLib import *
+MenuLib.robot.reflectCal()
+
 def left(state):
-    pass
+    if state:
+        minusCount()
+        display()
 def right(state):
-    pass
-def up(state):
-    pass
+    if state:
+        addCount()
+        display()
 def down(state):
-    pass
+    if state:
+        calibrate()
+def up(state):
+    if state:
+        abort()
+        minusCount()
+        display()
 def enter(state):
     if state:
-        R1.DriveAtHeading(0, 50, 50, True)
+        run()
+        addCount()
+        display()
 def backspace(state):
-    pass
+    if state:
+        abort()
 
-R1.btn.on_left = left
-R1.btn.on_right = right
-R1.btn.on_up = up
-R1.btn.on_down = down
-R1.btn.on_enter = enter
-R1.btn.on_backspace = backspace
+robot.btn.on_left = left
+robot.btn.on_right = right
+robot.btn.on_up = up
+robot.btn.on_down = down
+robot.btn.on_enter = enter
+robot.btn.on_backspace = backspace
 
 
 while True:    
-    R1.btn.process()
-
-
+    robot.btn.process()
+    loopIndex = (loopIndex + 1) % 100
+    displaySensor()
+    checkDrift()

@@ -9,8 +9,9 @@ class Robot:
     from ev3dev2.sound import Sound
     from ev3dev2.button import Button
     from ev3dev2.led import Leds, LED_COLORS, LED_DEFAULT_COLOR, LED_GROUPS, LEDS
+    from ev3dev2.display import Display
+    import ev3dev2.fonts as fonts
     import math
-    import time
     
     def __init__(self, filename):
         from configparser import SafeConfigParser
@@ -22,6 +23,7 @@ class Robot:
         self.spkr = self.Sound()
         self.btn = self.Button()
         self.led = self.Leds()
+        self.disp = self.Display()
 
         self.LeftMotor = eval(conf.get('Drivebase', 'LeftMotorPort'))
         self.RightMotor = eval(conf.get('Drivebase', 'RightMotorPort'))
