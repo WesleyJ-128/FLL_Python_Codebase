@@ -1,7 +1,7 @@
 from DriveLibraries import *
 import multiprocessing
-import Missions
 from time import sleep
+Missions = None
 mission = None
 robot = None
 programs = []
@@ -9,11 +9,13 @@ numPrograms = 0
 count = 1
 loopIndex = 0
 
-def init():
+def init(confFile):
     global programs
     global numPrograms
     global robot
-    robot = Robot('robot.cfg')
+    global Missions
+    robot = Robot(confFile)
+    import Missions
     programs = dir(Missions)
     i = 0
     index = -1
@@ -29,17 +31,19 @@ def init():
 
     robot.disp.clear()
     robot.disp.text_grid(programs[0][3:], font=robot.fonts.load('timR24'))
-    
+
 def runCurrentMission():
     method_to_call = getattr(Missions, programs[count - 1])
     method_to_call()
     robot.rm.off(brake=False)
     robot.lm.off(brake=False)
 
-def run():
-    robot.zeroGyro()
+def initthread():
     global mission
     mission = multiprocessing.Process(target=runCurrentMission)
+
+def run():
+    robot.zeroGyro()
     mission.start()
     
 def display():

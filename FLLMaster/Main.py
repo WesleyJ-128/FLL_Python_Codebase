@@ -1,45 +1,67 @@
 #!/usr/bin/env python3
-from MenuLib import init
-import MenuLib
+from MenuLib import init, initthread, runCurrentMission
 from time import sleep
-# Write Code Here ----------------------------------------
+loopIndex = 0
 
-init()
+init('robot.cfg')
+initthread()
 from MenuLib import *
-MenuLib.robot.reflectCal()
+calibrate()
+robot.reflectCal()
 
 def left(state):
     if state:
-        minusCount()
-        display()
+        if not mission.is_alive():
+            minusCount()
+            display()
+        else:
+                abort()
+                minusCount()
+                display()
 def right(state):
     if state:
-        addCount()
-        display()
+        if not mission.is_alive():
+            addCount()
+            display()
+        else:
+            abort()
+            minusCount()
+            display()
 def down(state):
     if state:
-        calibrate()
+        if not mission.is_alive():
+            calibrate()
+        else:
+            abort()
+            minusCount()
+            display()
 def up(state):
     if state:
-        abort()
-        minusCount()
-        display()
+        if not mission.is_alive():
+            robot.reflectCal()
+        else:
+            abort()
+            minusCount()
+            display()
 def enter(state):
     if state:
-        run()
-        addCount()
-        display()
+        if not mission.is_alive():
+            run()
+            addCount()
+            display()
+        else:
+            abort()
+            minusCount()
+            display()
 def backspace(state):
-    if state:
-        abort()
+    pass
 
 robot.btn.on_left = left
 robot.btn.on_right = right
 robot.btn.on_up = up
 robot.btn.on_down = down
 robot.btn.on_enter = enter
-robot.btn.on_backspace = backspace
-
+robot.btn.on_backspace = backspace      
 
 while True:    
     robot.btn.process()

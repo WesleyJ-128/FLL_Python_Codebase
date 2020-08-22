@@ -1,6 +1,9 @@
 from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
+reflHighVal = 100
+reflLowVal = 0
+reflRate = 1
 
 class Robot:
     from ev3dev2.motor import MoveTank, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D, LargeMotor
@@ -12,6 +15,7 @@ class Robot:
     from ev3dev2.display import Display
     import ev3dev2.fonts as fonts
     import math
+
     
     def __init__(self, filename):
         from configparser import SafeConfigParser
@@ -83,32 +87,68 @@ class Robot:
         self.spkr.beep()
 
     def reflectCal(self):
+        """
+        "Calibrate" the color sensor using high and low setpoints, and a simple linear mapping.
+        The adjusted value can then be accessed using robot.correctedRLI, and the raw value can be acessed using
+        robot.cs.reflected_light_intensity.
+
+        Use:  When called, the robot will emit a high-pitched beep.  This is a signal to place the robot on a white surface
+        and press the center button.  The robot then emits a low-pitched beep.  This is a signal to repeat the procedure with a
+        black surface.
+        """
+        # These variables need to be accessed by the correctedRLI function, and thus need to be global.
         global reflHighVal
         global reflLowVal
         global reflRate
+        # Signal for white
         self.spkr.beep('-f 880')
+        # Wait for user conformation of a white surface
         self.btn.wait_for_bump('enter')
+        # Set High fixpoint
         reflHighVal = (self.cs.reflected_light_intensity)
+        # Conformation of completion
         self.spkr.beep()
+        # Signal for black
         self.spkr.beep('-f 220')
+        # Wait for user conformation of a black surface
         self.btn.wait_for_bump('enter')
+        # Set Low fixpoint
         reflLowVal = self.cs.reflected_light_intensity
+        # Conformation of completion
         self.spkr.beep()
+        # Calculate the slope of the linear function that maps the fixpoints to 0 - 100
         reflRate = 100 / (reflHighVal - reflLowVal)
 
     @property
     def correctedRLI(self):
+        """
+        Returns the reflected light intensity from the color sensor, scaled based on the high and low values created by reflectCal
+
+        This means LineFollow can use 50 as the target, even though the actual reading for black might be 20, and white 75, as it
+        will be scaled to 0 - 100.
+        """
+        # Calculates adjusted value with a linear mapping.  To see how this works go here: https://www.desmos.com/calculator/d4mudhrdng
         value = min([100, max([0, (self.cs.reflected_light_intensity * reflRate) + (-reflLowVal * reflRate)])])
         return(value)
 
     @property
     def correctedAngle(self):
+        """
+        Retuns the gyro value corrected for the orientation of the gyro in the robot; turning right will always increase the value,
+        and turning left will always decrease the value.  The raw value can be accessed with robot.gs.angle_and_rate[0]
+
+        Angle and rate is used to prevent switching modes and resetting the angle.
+        """
+
         # Multiply the gyro angle by -1 if the gyro is mounted upside-down relative to the motors in the robot.
         # GyroInvertedNum is set up in __init__()
         return(self.gs.angle_and_rate[0] * self.GyroInvertedNum)
 
     def zeroGyro(self):
-        # Reset the gyro angle to zero by switching modes. gyro.reset would have been used instead of this function, but it does not work
+        """
+        Reset the gyro angle to zero by switching modes.  gyro.reset would have been used instead of this function, 
+        but it does not work
+        """
         self.gs._ensure_mode(self.gs.MODE_GYRO_RATE)
         self.gs._ensure_mode(self.gs.MODE_GYRO_G_A)
 
@@ -126,6 +166,7 @@ class Robot:
             print("Distance must be greater than zero.  Use negative speed to drive backwards.")
             return
         elif Distance > 265:
+            # The longest distance on an FLL table (diagonal) is about 265cm.
             if self.ForFLL:
                 print("Please don't use silly distances (max = 265cm)")
                 return
@@ -181,7 +222,7 @@ class Robot:
                     # Calculate the pecrentage of the distance left to travel
                     targDist = 1 - (avg / target)
                     # Calculate speedMult based on pecentage; linear function was designed to bring the robot to a
-                    # smooth stop while still reaching the target.
+                    # smooth stop while still reaching the target, resulting in 20% of the intial speed at end.
                     speedMult = ((8 / 3) * targDist) + 0.2
                 else:
                     speedMult = 1
@@ -201,25 +242,48 @@ class Robot:
             self.steer.stop()
     
     def degrees2power(self, currentDifference):
+        """
+        Returns a power value based on the degrees left to turn, using a linear function that allows the robot
+        to reach the desired angle, while slowing down as to not overshoot.  Used only in GyroTurn.
+        """
         if currentDifference == 0:
+            # Minimum power value is 5
             return(5)
+        # Using and returning absolute values, for simplicity.  GyroTurn fixes the sign.
         currentDifference = abs(currentDifference)
+        # Return calculated value
         return(min([50, max([5, ((0.125 * currentDifference) + 4.875)])]))
 
     def GyroTurn(self, Heading):
+        """
+        Turns the robot to ``Heading``, slowing down as it approaches.  Will unwind any full circles
+        (if the gyro reads 540, and the value given is 90, the robot will spin until reaching 90, not 450).
+        """
+
+        # Initalize the sign variable (used to correct overshoot)
         sign = 1
 
+        # If the current heading is equal to the desired heading, no turning is needed.
         if Heading - self.correctedAngle == 0:
             return
         
+        # Read the gyro, and store in currentHeading
         currentHeading = self.correctedAngle
+        # Continue turning until the robot is within 1 degree of the target (can be reduced if necessary)
         while (currentHeading > 0.5 + Heading) or (currentHeading < Heading - 0.5):
+            # Calculate the difference between where the robot should be and where it is
             currentDifference = Heading - currentHeading
+            # The sign variable defines the direction in which to turn. It should have the same sign as the currentDifference variable.
+            # If not, multiply by -1 to fix it.
             if ((sign > 0) and (currentDifference < 0)) or ((sign < 0) and (currentDifference > 0)):
                 sign *= -1
+            # Set the power variable to the absolute power (calculated by degrees2power) multiplied by the sign variable
             power = sign * self.degrees2power(currentDifference)
+            # Start turning
             self.tank.on(power, -1 * power)
+            # Update currentHeading
             currentHeading = self.correctedAngle
+        # When the loop finishes, stop the motors.
         self.tank.stop()
 
     def ArcTurn(self, Degrees, Radius, Speed):
