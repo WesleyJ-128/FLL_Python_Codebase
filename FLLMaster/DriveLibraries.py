@@ -411,11 +411,13 @@ class Robot:
         """
         Similar to DriveBump, will run an auxillary motor until the speed drops below ``Threshold``% of ``Speed``.
 
-        ``Speed``: Speed at which to run the motor.
+        ``Speed``: Speed at which to run the motor, in motor percentage (Same units as EV3-G).
         ``Threshold``: Percentage of ``Speed`` that the motor speed must drop below before shutting off.
         ``Port``: Motor port.
         """
+        # Most if statments are only because there are two possible ports; one case for each port
 
+        # Ensure values are within reasonable, and adjust/reject as necessary
         if Speed > 75:
             Speed = 75
             print("Speed must be between -75 and 75 (inclusive).")
@@ -429,23 +431,31 @@ class Robot:
             print("Threshold must be greater than zero and less than or equal to 100")
             return
         
+        # Different commands for different motors, check which motor to use
         if Port == self.AuxMotor1:
+            # Find the target speed in encoder ticks per second
             target = abs((self.m1.max_speed * Speed) / 100)
-            msNative = (Speed * self.m1.max_speed) / 100
-            self.m1.on(SpeedNativeUnits(msNative))
+            # Start the motor, with the calculated speed
+            self.m1.on(SpeedNativeUnits(target))
+            # Wait for the motor to get up to speed
             time.sleep(0.5)
+            # Set motrspeed to the current motor speed
             motrspeed = abs(self.m1.speed)
         else:
+            # Everything here is the same as the first case statement, but using m2 instead of m1 (motor 2, not motor 1)
             target = abs((self.m2.max_speed * Speed) / 100)
-            msNative = (Speed * self.m2.max_speed) / 100
-            self.m2.on(SpeedNativeUnits(msNative))
+            self.m2.on(SpeedNativeUnits(target))
             time.sleep(0.5)
             motrspeed = abs(self.m2.speed)
+            # Keep the motor on until the motor speed drops below Threshold% of Speed
         while motrspeed > (target * Threshold) / 100:
             if Port == self.AuxMotor1:
+                # Update motrspeed until the motor slows down enough to stop
                 motrspeed = abs(self.m1.speed)
             else:
+                # Same as before, just for the other motor
                 motrspeed = abs(self.m2.speed)
+        # Shut off the motor
         if Port == self.AuxMotor1:
             self.m1.off()
         else:
