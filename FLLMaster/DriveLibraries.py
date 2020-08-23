@@ -1,11 +1,15 @@
+# The program doesn't work without this.  Not sure why.
 from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
+
+# Global Variables for color sensor calibration
 reflHighVal = 100
 reflLowVal = 0
 reflRate = 1
 
 class Robot:
+    # Import stuff
     from ev3dev2.motor import MoveTank, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D, LargeMotor
     from ev3dev2.sensor.lego import ColorSensor, GyroSensor, InfraredSensor, TouchSensor, UltrasonicSensor
     from ev3dev2.sensor import INPUT_1, INPUT_2, INPUT_3, INPUT_4
@@ -16,60 +20,88 @@ class Robot:
     import ev3dev2.fonts as fonts
     import math
 
-    
     def __init__(self, filename):
+        """
+        Stores all the properties of the robot, such as wheel circumference, motor ports, ect.  Also provides methods for higher-level
+        interaction with the robot, such as driving in a straight line at a specific heading, following a line, or driving until hitting 
+        an obstacle.  Also instantiates motor and sensor objects for direct use later, if necessary.
+        Reads ``filename`` for robot properties; ``filename`` should be a .ini or .cfg file in INI format.  See the current robot.cfg 
+        for format example.
+        """
+        # Load and read the config file
         from configparser import SafeConfigParser
         conf = SafeConfigParser()
         conf.read(filename)
 
+        # Set the "ForFLL" flag based on it's status in the config file (used in some input validation)
         self.ForFLL = bool(conf.get('Other', 'ForFLL') == "TRUE")
 
+        # Instantiate objects for controlling things on the brick itself (Speaker, Buttons, Lights, and the LCD)
         self.spkr = self.Sound()
         self.btn = self.Button()
         self.led = self.Leds()
         self.disp = self.Display()
 
+        # Read the drive motor ports from the config file, and store.  "eval()" is used because the port names "OUTPUT_#",
+        # where # is a capital letter, A - D, are variables used as constants, and reading as a string does not work.
         self.LeftMotor = eval(conf.get('Drivebase', 'LeftMotorPort'))
         self.RightMotor = eval(conf.get('Drivebase', 'RightMotorPort'))
+        # Read and store the wheel circumference and width between the wheels
         self.WheelCircumference = float(conf.get('Drivebase', 'WheelCircumference'))
         self.WidthBetweenWheels = float(conf.get('Drivebase', 'WidthBetweenWheels'))
+        # Read and store MotorInverted and GyroInverted.  GyroInverted shoould be true if the gyro is inverted relative to the motors,
+        # and MotorInverted should be true if the drive motors are upside-down.  Drive functions will not work correctly if these 
+        # values are incorrect, and they are the first things to check if the drive functions do not work correctly.
         self.MotorInverted = bool(conf.get('Drivebase', 'MotorInverted') == "TRUE")
-        self.GearRatio = float(conf.get('Drivebase', 'GearRatio'))
         self.GyroInverted = bool(conf.get('Drivebase', 'GyroInverted') == "TRUE")
+        # Reads and stores the gear ratio value.  Currently not used, except for motor direction. 
+        # (1 and -1 work, with -1 meaning a 1:1 ratio that reverses the motor direction)
+        self.GearRatio = float(conf.get('Drivebase', 'GearRatio'))
+        # Reads and stores the PID gains for driving in a straight line.
         self.kp = float(conf.get('Drivebase', 'kp'))
         self.ki = float(conf.get('Drivebase', 'ki'))
         self.kd = float(conf.get('Drivebase', 'kd'))
 
+        # Read the sensor ports from the config file, and store.  "eval()" is used because the port names "INPUT_#",
+        # where # is a number, 1 - 4, are variables used as constants, and reading as a string does not work.
         self.ColorPort = eval(conf.get('Sensors', 'ColorPort'))
         self.GyroPort = eval(conf.get('Sensors', 'GyroPort'))
         self.InfraredPort = eval(conf.get('Sensors', 'InfraredPort'))
         self.TouchPort = eval(conf.get('Sensors', 'TouchPort'))
         self.UltrasonicPort = eval(conf.get('Sensors', 'UltrasonicPort'))
+        # Reads and stores the PID gains for following a line.
         self.kpLine = float(conf.get('Sensors', 'kpLine'))
         self.kiLine = float(conf.get('Sensors', 'kiLine'))
         self.kdLine = float(conf.get('Sensors', 'kdLine'))
 
+        # Read the auxillary motor ports, if any, from the config file, and store.  "eval()" is used because the port names "OUTPUT_#",
+        # where # is a capital letter, A - D, are variables used as constants, and reading as a string does not work.
         self.AuxMotor1 = eval(conf.get('AuxMotors', 'AuxMotor1'))
         self.AuxMotor2 = eval(conf.get('AuxMotors', 'AuxMotor2'))
 
+        # Instantiate the auxillary motor objects (only if motors are connected)
         #self.m1 = MediumMotor(self.AuxMotor1)
         #self.m2 = MediumMotor(self.AuxMotor2)
 
 
+        # Instantiate the sensor objects
         self.cs = ColorSensor(self.ColorPort)
         self.gs = GyroSensor(self.GyroPort)
         self.ir = InfraredSensor(self.InfraredPort)
         self.us = UltrasonicSensor(self.UltrasonicPort)
 
+        # Instantiate the drive motor objecta, as well as the motorset objects for controlling both simultainiously
         self.tank = MoveTank(self.LeftMotor, self.RightMotor)
-        self.tank.gyro = GyroSensor(self.GyroPort)
         self.steer = MoveSteering(self.LeftMotor, self.RightMotor)
         self.lm = LargeMotor(self.LeftMotor)
         self.rm = LargeMotor(self.RightMotor)
 
+        # Reset the gyro angle to zero by switching modes
         self.gs._ensure_mode(self.gs.MODE_GYRO_G_A)
         self.cs._ensure_mode(self.cs.MODE_COL_REFLECT)
 
+        # If the motors are inverted xor the gear ratio is negative, set the motor poloraity to be inverted, 
+        # so normal motor commands will run the motors in the opposite direction.
         if self.MotorInverted ^ (self.GearRatio / abs(self.GearRatio) == -1):
             self.lm.polarity = "inversed"
             self.rm.polarity = "inversed"
@@ -79,11 +111,14 @@ class Robot:
             self.rm.polarity = "normal"
             self.tank.set_polarity = "normal"
         
+        # Set the integer GyroInvertedNum to reflect the boolean GyroInverted, with -1 = True, and 1 = False, 
+        # for use in calculations later
         if self.GyroInverted:
             self.GyroInvertedNum = -1
         else:
             self.GyroInvertedNum = 1
         
+        # Beep to signify the robot isdone initialization (it takes a while)
         self.spkr.beep()
 
     def reflectCal(self):
