@@ -287,6 +287,16 @@ class Robot:
         self.tank.stop()
 
     def ArcTurn(self, Degrees, Radius, Speed):
+        """
+        Drive the robot in an arc with a specified radius, for a certain number of degrees.
+
+        ``Degrees``:  The number or degrees to drive around the arc.  Positive will turn the front of the robot right, negative left (car turn).  
+        ``Radius``:  The radius of the arc to drive, in cm.  Must be positive.
+        ``Speed``:  The speed at which to drive around the arc, in percentage of full power (same units as EV3-G).  Negative will drive
+        backwards.
+        """
+
+        # Ensure the parameters are within reasonable limits, and adjust/reject as necessary.
         if Speed > 75:
             Speed = 75
             print("Speed must be between -75 and 75 (inclusive).")
@@ -296,15 +306,21 @@ class Robot:
         if Radius <= 0:
             print("Radius must be greater than zero.  Use negative degrees to turn the opposite direction.")
             return
-        math.fmod(Degrees, 360)
+        # No point in driving in circles
+        Degrees = math.fmod(Degrees, 360)
 
+        # Read the angle of the robot, and store in startHeading
         startHeading = self.correctedAngle
 
+        # If both Degrees and Speed have the same sign, the right wheel should be slowed down.
+        # Otherwise, slow down the left wheel.
         if ((Degrees > 0) and (Speed > 0)) or ((Degrees < 0) and (Speed < 0)):
             self.tank.on(Speed, (Radius - self.WidthBetweenWheels) * Speed / Radius)
         else:
             self.tank.on((Radius - self.WidthBetweenWheels) * Speed / Radius, Speed)
         
+        # If Degrees is positive, wait for the degrees turned to become >= Degrees (to turn).
+        # Otherwise, wait for the degrees turned to become <= Degrees
         if Degrees > 0:
             while (self.correctedAngle - startHeading) < Degrees:
                 dummy = 1
@@ -312,6 +328,7 @@ class Robot:
             while (self.correctedAngle - startHeading) > Degrees:
                 dummy = 1
         
+        # Stop the motors
         self.tank.stop()
     
     def DriveBump(self, Heading, Speed):
@@ -352,7 +369,7 @@ class Robot:
         turn_native_units = sign * max([min([(self.kp * error) + (self.ki * integral) + (self.kd * derivative), 100]), -100])
 
         # Start the motors without speed regulation, using the Steering value and Speed
-        lsrs = self.steer.get_speed_steering(turn_native_units, Speed)
+        lsrs = self.steer.get_speed_steering(turn_native_units, Speed) # lsrs = left-speed right-speed
         lsNative = lsrs[0]
         rsNative = lsrs[1]
         self.lm.on(SpeedNativeUnits(lsNative))
@@ -391,6 +408,14 @@ class Robot:
         self.rm.stop()
 
     def AuxMotorBumpStop(self, Speed, Threshold, Port):
+        """
+        Similar to DriveBump, will run an auxillary motor until the speed drops below ``Threshold``% of ``Speed``.
+
+        ``Speed``: Speed at which to run the motor.
+        ``Threshold``: Percentage of ``Speed`` that the motor speed must drop below before shutting off.
+        ``Port``: Motor port.
+        """
+
         if Speed > 75:
             Speed = 75
             print("Speed must be between -75 and 75 (inclusive).")
@@ -404,14 +429,14 @@ class Robot:
             print("Threshold must be greater than zero and less than or equal to 100")
             return
         
-        target = abs((self.lm.max_speed * Speed) / 100)
-        
         if Port == self.AuxMotor1:
+            target = abs((self.m1.max_speed * Speed) / 100)
             msNative = (Speed * self.m1.max_speed) / 100
             self.m1.on(SpeedNativeUnits(msNative))
             time.sleep(0.5)
             motrspeed = abs(self.m1.speed)
         else:
+            target = abs((self.m2.max_speed * Speed) / 100)
             msNative = (Speed * self.m2.max_speed) / 100
             self.m2.on(SpeedNativeUnits(msNative))
             time.sleep(0.5)
