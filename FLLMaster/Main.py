@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from MenuLib import init, initthread, runCurrentMission
 from time import sleep
+from sys import stderr
 loopIndex = 0
 
 init('robot.cfg')
@@ -8,9 +9,9 @@ initthread()
 from MenuLib import *
 calibrate()
 robot.reflectCal()
+print("Finished Init", file=stderr)
 
 def left():
-    robot.btn.wait_for_released('left, right, up, down, enter')
     if not mission.is_alive():
         minusCount()
         display()
@@ -19,7 +20,6 @@ def left():
         minusCount()
         display()
 def right():
-    robot.btn.wait_for_released('left, right, up, down, enter')
     if not mission.is_alive():
         addCount()
         display()
@@ -28,7 +28,6 @@ def right():
         minusCount()
         display()
 def down():
-    robot.btn.wait_for_released('left, right, up, down, enter')
     if not mission.is_alive():
         calibrate()
     else:
@@ -36,7 +35,6 @@ def down():
         minusCount()
         display()
 def up():
-    robot.btn.wait_for_released('left, right, up, down, enter')
     if not mission.is_alive():
         robot.reflectCal()
     else:
@@ -44,7 +42,6 @@ def up():
         minusCount()
         display()
 def enter():
-    robot.btn.wait_for_released('left, right, up, down, enter')
     if not mission.is_alive():
         run()
         addCount()
@@ -54,16 +51,22 @@ def enter():
         minusCount()
         display()
 
+print("Functions Defined", file=stderr)
+
 buttonMap = {
-    'left': left(),
-    'right': right(),
-    'enter': enter(),
-    'up': up(),
-    'down': down()
+    'left': left,
+    'right': right,
+    'enter': enter,
+    'up': up,
+    'down': down
 }
 
+print("Map Defined", file=stderr)
+
 while True:
-    buttonMap[robot.btn.buttons_pressed]()
+    buttonlist = robot.btn.buttons_pressed
+    if buttonlist:
+        buttonMap[buttonlist[0]]()
+    loopIndex = (loopIndex + 1) % 100
     checkDrift()
     displaySensor()
-    loopIndex = (loopIndex + 1) % 100
