@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-from MenuLib import init, initthread, runCurrentMission
-from time import sleep
-from sys import stderr
+
 loopIndex = 0
+
+from MenuLib import init, initthread
+from sys import stderr
 
 init('robot.cfg')
 initthread()
@@ -17,30 +18,22 @@ def left():
         display()
     else:
         abort()
-        minusCount()
-        display()
 def right():
     if not mission.is_alive():
         addCount()
         display()
     else:
         abort()
-        minusCount()
-        display()
 def down():
     if not mission.is_alive():
         calibrate()
     else:
         abort()
-        minusCount()
-        display()
 def up():
     if not mission.is_alive():
         robot.reflectCal()
     else:
         abort()
-        minusCount()
-        display()
 def enter():
     if not mission.is_alive():
         run()
@@ -48,8 +41,6 @@ def enter():
         display()
     else:
         abort()
-        minusCount()
-        display()
 
 print("Functions Defined", file=stderr)
 
@@ -64,9 +55,11 @@ buttonMap = {
 print("Map Defined", file=stderr)
 
 while True:
+    from MenuLib import mission
     buttonlist = robot.btn.buttons_pressed
     if buttonlist:
         buttonMap[buttonlist[0]]()
     loopIndex = (loopIndex + 1) % 100
-    checkDrift()
-    displaySensor()
+    if not mission.is_alive():
+        checkDrift()
+        displaySensor()

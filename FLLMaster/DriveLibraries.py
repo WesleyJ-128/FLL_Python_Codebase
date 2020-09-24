@@ -358,10 +358,10 @@ class Robot:
         # Otherwise, wait for the degrees turned to become <= Degrees
         if Degrees > 0:
             while (self.correctedAngle - startHeading) < Degrees:
-                dummy = 1
+                pass
         else:
             while (self.correctedAngle - startHeading) > Degrees:
-                dummy = 1
+                pass
         
         # Stop the motors
         self.tank.stop()
