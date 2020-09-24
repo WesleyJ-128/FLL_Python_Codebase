@@ -43,6 +43,8 @@ def initthread():
     mission = multiprocessing.Process(target=runCurrentMission)
 
 def run():
+    global mission
+    mission = multiprocessing.Process(target=runCurrentMission)
     robot.zeroGyro()
     mission.start()
     
@@ -53,8 +55,11 @@ def display():
 def abort():
     mission.terminate()
     mission.join()
+    sleep(1)
     robot.lm.off(brake=False)
     robot.rm.off(brake=False)
+    minusCount()
+    display()
 
 def addCount():
     global count

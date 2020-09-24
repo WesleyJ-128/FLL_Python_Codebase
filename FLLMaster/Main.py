@@ -1,70 +1,65 @@
 #!/usr/bin/env python3
-from MenuLib import init, initthread, runCurrentMission
-from time import sleep
+
 loopIndex = 0
+
+from MenuLib import init, initthread
+from sys import stderr
 
 init('robot.cfg')
 initthread()
 from MenuLib import *
 calibrate()
 robot.reflectCal()
+print("Finished Init", file=stderr)
 
-def left(state):
-    if state:
-        if not mission.is_alive():
-            minusCount()
-            display()
-        else:
-                abort()
-                minusCount()
-                display()
-def right(state):
-    if state:
-        if not mission.is_alive():
-            addCount()
-            display()
-        else:
-            abort()
-            minusCount()
-            display()
-def down(state):
-    if state:
-        if not mission.is_alive():
-            calibrate()
-        else:
-            abort()
-            minusCount()
-            display()
-def up(state):
-    if state:
-        if not mission.is_alive():
-            robot.reflectCal()
-        else:
-            abort()
-            minusCount()
-            display()
-def enter(state):
-    if state:
-        if not mission.is_alive():
-            run()
-            addCount()
-            display()
-        else:
-            abort()
-            minusCount()
-            display()
-def backspace(state):
-    pass
+def left():
+    if not mission.is_alive():
+        minusCount()
+        display()
+    else:
+        abort()
+def right():
+    if not mission.is_alive():
+        addCount()
+        display()
+    else:
+        abort()
+def down():
+    if not mission.is_alive():
+        calibrate()
+    else:
+        abort()
+def up():
+    if not mission.is_alive():
+        robot.reflectCal()
+    else:
+        abort()
+def enter():
+    if not mission.is_alive():
+        run()
+        addCount()
+        display()
+    else:
+        abort()
 
-robot.btn.on_left = left
-robot.btn.on_right = right
-robot.btn.on_up = up
-robot.btn.on_down = down
-robot.btn.on_enter = enter
-robot.btn.on_backspace = backspace      
+print("Functions Defined", file=stderr)
 
-while True:    
-    robot.btn.process()
+buttonMap = {
+    'left': left,
+    'right': right,
+    'enter': enter,
+    'up': up,
+    'down': down
+}
+
+print("Map Defined", file=stderr)
+
+while True:
+    from MenuLib import mission
+    buttonlist = robot.btn.buttons_pressed
+    if buttonlist:
+        buttonMap[buttonlist[0]]()
     loopIndex = (loopIndex + 1) % 100
-    displaySensor()
-    checkDrift()
+    if not mission.is_alive():
+        checkDrift()
+        displaySensor()
