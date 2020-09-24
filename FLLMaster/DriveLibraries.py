@@ -1,4 +1,5 @@
 # The program doesn't work without this.  Not sure why.
+from time import sleep
 from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
@@ -79,9 +80,21 @@ class Robot:
         self.AuxMotor1 = eval(conf.get('AuxMotors', 'AuxMotor1'))
         self.AuxMotor2 = eval(conf.get('AuxMotors', 'AuxMotor2'))
 
-        # Instantiate the auxillary motor objects (only if motors are connected)
-        #self.m1 = MediumMotor(self.AuxMotor1)
-        #self.m2 = MediumMotor(self.AuxMotor2)
+        # Instantiate the auxillary motor objects, checking if they are connected first.
+        if self.AuxMotor1 is not None:    
+            try:
+                self.m1 = MediumMotor(self.AuxMotor1)
+            except:
+                print("Aux Motor 1 Not Connected!")
+                self.spkr.beep('-f 220')
+        if self.AuxMotor2 is not None:    
+            try:
+                self.m2 = MediumMotor(self.AuxMotor2)
+            except:
+                print("Aux Motor 2 Not Connected!")
+                self.spkr.beep('-f 220')
+                sleep(0.3)
+                self.spkr.beep('-f 220')
 
 
         # Instantiate the sensor objects
