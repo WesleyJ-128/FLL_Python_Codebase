@@ -14,3 +14,6 @@ The screen will then show the name of the current mission across the top; and th
 * The top button recalibrates the color sensor
 
 **When a mission is running, all buttons lose their normal function, and will abort the current mission.**
+
+### Adding Missions
+To add a mission, simply create a new function in ``Missions.py``.  Mission Names should be prefaced with a##, where ## is two numbers.  These numbers will not show up on the display, they are used to alphabetically order the missions; a00 is first, followed by a01, and so on.  It is reccomended that spaces are left between the numbers (a00, a05, a10...), to allow for future missions.
