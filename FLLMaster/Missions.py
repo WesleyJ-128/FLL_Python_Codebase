@@ -1,7 +1,11 @@
+# Check if the program is running (rare) or if it is being used as a library
 if __name__ == "__main__":
+    # If it is running, import everything from Drivelibraries and create a robot object.
     from DriveLibraries import *
     robot = Robot('robot.cfg')
 else:
+    # If it is a library, import the robot object from MenuLib 
+    # (which would have called Missions in the first place).
     from MenuLib import robot
 
 # Mission Names should be prefaced with a##, where ## is two numbers.  These
@@ -12,14 +16,14 @@ else:
 
 # Write Mission Programs Here ----------------------
 
-def a00Star():
+def a05Star():
     # Drives a simple 4-pointed star, with arced sides
     robot.ArcTurn(-90, 30, 30)
     robot.ArcTurn(-90, 30, -30)
     robot.ArcTurn(-90, 30, 30)
     robot.ArcTurn(-90, 30, -30)
 
-def a05LineFollow():
+def a00LineFollow():
     # Follows a line for 50 cm, at 50% speed, stopping at end
     robot.LineFollow(50, 50, True)
 
