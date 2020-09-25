@@ -55,8 +55,7 @@ class Robot:
         # values are incorrect, and they are the first things to check if the drive functions do not work correctly.
         self.MotorInverted = bool(conf.get('Drivebase', 'MotorInverted') == "TRUE")
         self.GyroInverted = bool(conf.get('Drivebase', 'GyroInverted') == "TRUE")
-        # Reads and stores the gear ratio value.  Currently not used, except for motor direction. 
-        # (1 and -1 work, with -1 meaning a 1:1 ratio that reverses the motor direction)
+        # Reads and stores the gear ratio value.
         self.GearRatio = float(conf.get('Drivebase', 'GearRatio'))
         # Reads and stores the PID gains for driving in a straight line.
         self.kp = float(conf.get('Drivebase', 'kp'))
@@ -96,14 +95,18 @@ class Robot:
                 sleep(0.3)
                 self.spkr.beep('-f 220')
 
-
         # Instantiate the sensor objects
         self.cs = ColorSensor(self.ColorPort)
         self.gs = GyroSensor(self.GyroPort)
-        self.ir = InfraredSensor(self.InfraredPort)
-        self.us = UltrasonicSensor(self.UltrasonicPort)
+        # Only instantiate auxillary sensors if the config file shows they exist
+        if self.InfraredPort is not None:
+            self.ir = InfraredSensor(self.InfraredPort)
+        if self.UltrasonicPort is not None:
+            self.us = UltrasonicSensor(self.UltrasonicPort)
+        if self.TouchPort is not None:
+            self.ts = TouchSensor(self.TouchPort)
 
-        # Instantiate the drive motor objecta, as well as the motorset objects for controlling both simultainiously
+        # Instantiate the drive motor objects, as well as the motorset objects for controlling both simultainiously
         self.tank = MoveTank(self.LeftMotor, self.RightMotor)
         self.steer = MoveSteering(self.LeftMotor, self.RightMotor)
         self.lm = LargeMotor(self.LeftMotor)
@@ -237,7 +240,7 @@ class Robot:
         sign = Speed / abs(Speed)
 
         # Find number of degrees that motors need to rotate to reach the desired number of cm.
-        target = (Distance * 360) / self.WheelCircumference
+        target = (Distance * 360) / self.WheelCircumference * abs(self.GearRatio)
 
         # Find the average of the left and right encoders, as they could be different from PID correction
         avg = abs((left_motor_change + right_motor_change) / 2)
@@ -604,7 +607,7 @@ class Robot:
         sign = Speed / abs(Speed)
 
         # Find number of degrees that motors need to rotate to reach the desired number of cm.
-        target = (Distance * 360) / self.WheelCircumference
+        target = (Distance * 360) / self.WheelCircumference * abs(self.GearRatio)
 
         # Find the average of the left and right encoders, as they could be different from PID correction
         avg = abs((left_motor_change + right_motor_change) / 2)
