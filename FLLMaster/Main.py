@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# This is the program that should be run during use; it creates the interactive menu.
+# It is also the only executable file other than test.py, which is only for testing things.
+
 # Initialize loopIndex variable, used in displaySensor()
 loopIndex = 0
 
@@ -26,38 +29,48 @@ print("Finished Init", file=stderr)
 
 # Define the functions for button presses
 def left():
-    # Make sure there is no mission process running; if it is not, decrease count and update the display
-    # Otherwise, abort the current mission
+    """
+    Called when left button pressed; if there is no mission running, 
+    decrease count and update the display. Otherwise, abort the current mission.
+    """
     if not mission.is_alive():
         minusCount()
         display()
     else:
         abort()
 def right():
-    # Make sure there is no mission process running; if it is not, increase count and update the display
-    # Otherwise, abort the current mission
+    """
+    Called when right button pressed; if there is no mission running, 
+    increase count and update the display. Otherwise, abort the current mission.
+    """
     if not mission.is_alive():
         addCount()
         display()
     else:
         abort()
 def down():
-    # Make sure there is no mission process running; if it is not, recalibrate the gyro
-    # Otherwise, abort the current mission
+    """
+    Called when bottom button pressed; if there is no mission running, 
+    recalibrate the gyro. Otherwise, abort the current mission.
+    """
     if not mission.is_alive():
         calibrate()
     else:
         abort()
 def up():
-    # Make sure there is no mission process running; if it is not, recalibrate the color sensor
-    # Otherwise, abort the current mission
+    """
+    Called when top button pressed; if there is no mission running, 
+    recalibrate the color sensor. Otherwise, abort the current mission.
+    """
     if not mission.is_alive():
         robot.reflectCal()
     else:
         abort()
 def enter():
-    # Make sure there is no mission process running; if it is not, run the current mission, increase count, and update the display
-    # Otherwise, abort the current mission
+    """
+    Called when center button pressed; if there is no mission running, launch the selected mission, 
+    increase count, and update the display. Otherwise, abort the current mission.
+    """
     if not mission.is_alive():
         run()
         addCount()
