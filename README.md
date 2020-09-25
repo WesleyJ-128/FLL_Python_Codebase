@@ -12,4 +12,5 @@ The screen will then show the name of the current mission across the top; and th
 * The right button works the same way as the left, but moving foward instead of back
 * The bottom button recalibrates the gyro
 * The top button recalibrates the color sensor
+
 **When a mission is running, all buttons lose their normal functioon, and will abort the current mission.**
