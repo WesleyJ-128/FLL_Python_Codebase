@@ -50,8 +50,7 @@ class Robot:
         # Read and store the wheel circumference and width between the wheels
         self.WheelCircumference = float(conf.get('Drivebase', 'WheelCircumference'))
         self.WidthBetweenWheels = float(conf.get('Drivebase', 'WidthBetweenWheels'))
-        # Read and store MotorInverted and GyroInverted.  GyroInverted shoould be true if the gyro is inverted relative to the motors,
-        # and MotorInverted should be true if the drive motors are upside-down.  Drive functions will not work correctly if these 
+        # Read and store MotorInverted and GyroInverted.  Both are relative to the robot, and drive functions will not work correctly if these 
         # values are incorrect, and they are the first things to check if the drive functions do not work correctly.
         self.MotorInverted = bool(conf.get('Drivebase', 'MotorInverted') == "TRUE")
         self.GyroInverted = bool(conf.get('Drivebase', 'GyroInverted') == "TRUE")
