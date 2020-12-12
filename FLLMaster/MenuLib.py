@@ -78,8 +78,12 @@ def runCurrentMission():
     # Attempts to stop auxillary motors.  If there are none, the try blocks will fail and the program will continue
     try:
         robot.m1.off(brake=False)
+    except:
+        pass
     try:
         robot.m2.off(brake=False)
+    except:
+        pass
 
 def initthread():
     """
@@ -131,8 +135,12 @@ def abort():
     # Attempts to stop auxillary motors.  If there are none, the try blocks will fail and the program will continue
     try:
         robot.m1.off(brake=False)
+    except:
+        pass
     try:
         robot.m2.off(brake=False)
+    except:
+        pass
     # Undo the auto-advance so the mission could easily be redone
     minusCount()
     display()

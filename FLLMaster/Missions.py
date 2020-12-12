@@ -27,6 +27,9 @@ def a00LineFollow():
     # Follows a line for 50 cm, at 50% speed, stopping at end
     robot.LineFollow(50, 50, True)
 
+def a06AvoidTest():
+    robot.TriangleAvoid(0, 100, 50)
+
 def a10Command_Key():
     # Drives in a pattern similar to the Apple command key
     #  o_o
