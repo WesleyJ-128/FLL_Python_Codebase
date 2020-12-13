@@ -1,6 +1,6 @@
 # The program doesn't work without this.  Not sure why.
+from sys import stderr
 from time import sleep
-from types import prepare_class
 from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
@@ -713,6 +713,10 @@ class Robot:
         # Find the average of the left and right encoders, as they could be different from PID correction
         avg = abs((left_motor_change + right_motor_change) / 2)
 
+        # Find the number of centimeters driven and left to go
+        driven_so_far = (avg * self.WheelCircumference) / 360
+        left_to_go = Distance - driven_so_far
+
         # Initialize variables for PID control
         integral = 0.0
         last_error = 0.0
@@ -744,14 +748,14 @@ class Robot:
             else:
                 speedMult = 1
 
-            if dist_to_obstacle <= 30:
+            if (dist_to_obstacle <= 30) and (left_to_go > 30):
+                self.steer.off(brake=False)
                 left_motor_now = self.lm.degrees
                 right_motor_now = self.rm.degrees
                 left_motor_change = left_motor_now - left_motor_start
                 right_motor_change = right_motor_now - right_motor_start
                 avg = abs((left_motor_change + right_motor_change) / 2)
                 driven_so_far = (avg * self.WheelCircumference) / 360
-                self.steer.off(brake=False)
                 dist_to_obstacle = self.us.distance_centimeters
                 start_angle = self.correctedAngle
                 while self.us.distance_centimeters < 60:
@@ -761,17 +765,15 @@ class Robot:
                 end_angle = self.correctedAngle
                 degrees_turned = abs(end_angle - start_angle)
                 first_hypotenuse = dist_to_obstacle / math.cos(math.radians(degrees_turned))
-                self.TriangleAvoid(end_angle, first_hypotenuse, (Speed / 2))
-                first_triangle_second_angle = math.degrees(math.asin(dist_to_obstacle / first_hypotenuse))
+                self.DriveAtHeading(end_angle, first_hypotenuse, 20, True)
                 second_triangle_short_leg = math.sqrt((first_hypotenuse ** 2) - (dist_to_obstacle ** 2))
                 second_triangle_long_leg = Distance - (driven_so_far + dist_to_obstacle + 2.21)
                 second_triangle_second_angle = math.degrees(math.atan(second_triangle_long_leg / second_triangle_short_leg))
-                degrees_to_turn = 180 - (first_triangle_second_angle + second_triangle_second_angle)
+                degrees_to_turn = 90 - second_triangle_second_angle
                 self.GyroTurn(Heading)
-                sleep(5)
-                self.GyroTurn(degrees_to_turn - Heading)
+                self.GyroTurn(Heading + degrees_to_turn)
                 second_hypotenuse = math.sqrt((second_triangle_long_leg ** 2) + (second_triangle_short_leg ** 2))
-                self.TriangleAvoid(self.correctedAngle, second_hypotenuse, (Speed / 2))
+                self.TriangleAvoid(self.correctedAngle, second_hypotenuse, 20)
                 self.GyroTurn(Heading)
                 return
 
@@ -785,6 +787,7 @@ class Robot:
             left_motor_change = left_motor_now - left_motor_start
             right_motor_change = right_motor_now - right_motor_start
             avg = abs((left_motor_change + right_motor_change) / 2)
+            driven_so_far = (avg * self.WheelCircumference) / 360
         
         # Stop the motors.
         self.steer.stop()
