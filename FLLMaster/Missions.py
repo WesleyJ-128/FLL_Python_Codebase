@@ -28,7 +28,7 @@ def a00LineFollow():
     robot.LineFollow(50, 50, True)
 
 def a06AvoidTest():
-    robot.TriangleAvoid(0, 100, 50)
+    robot.CircleAvoid(0, 100, 20)
 
 def a10Command_Key():
     # Drives in a pattern similar to the Apple command key
