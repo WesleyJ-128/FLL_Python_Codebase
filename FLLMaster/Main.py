@@ -18,12 +18,12 @@ init('robot.cfg')
 # Create the mission process used for running the current mission
 initthread()
 # Now that setup has finished, import everything else from MenuLib
-from MenuLib import *
+import MenuLib
 
 # Calibrate the gyro
-calibrate()
+MenuLib.calibrate()
 # Calibrate the color sensor
-robot.reflectCal()
+MenuLib.robot.reflectCal()
 # Initialization has finished, print status message to VS Code output window
 print("Finished Init", file=stderr)
 
@@ -33,50 +33,50 @@ def left():
     Called when left button pressed; if there is no mission running, 
     decrease count and update the display. Otherwise, abort the current mission.
     """
-    if not mission.is_alive():
-        minusCount()
-        display()
+    if not MenuLib.mission.is_alive():
+        MenuLib.minusCount()
+        MenuLib.display()
     else:
-        abort()
+        MenuLib.abort()
 def right():
     """
     Called when right button pressed; if there is no mission running, 
     increase count and update the display. Otherwise, abort the current mission.
     """
-    if not mission.is_alive():
-        addCount()
-        display()
+    if not MenuLib.mission.is_alive():
+        MenuLib.addCount()
+        MenuLib.display()
     else:
-        abort()
+        MenuLib.abort()
 def down():
     """
     Called when bottom button pressed; if there is no mission running, 
     recalibrate the gyro. Otherwise, abort the current mission.
     """
-    if not mission.is_alive():
-        calibrate()
+    if not MenuLib.mission.is_alive():
+        MenuLib.calibrate()
     else:
-        abort()
+        MenuLib.abort()
 def up():
     """
     Called when top button pressed; if there is no mission running, 
     recalibrate the color sensor. Otherwise, abort the current mission.
     """
-    if not mission.is_alive():
-        robot.reflectCal()
+    if not MenuLib.mission.is_alive():
+        MenuLib.robot.reflectCal()
     else:
-        abort()
+        MenuLib.abort()
 def enter():
     """
     Called when center button pressed; if there is no mission running, launch the selected mission, 
     increase count, and update the display. Otherwise, abort the current mission.
     """
-    if not mission.is_alive():
-        run()
-        addCount()
-        display()
+    if not MenuLib.mission.is_alive():
+        MenuLib.run()
+        MenuLib.addCount()
+        MenuLib.display()
     else:
-        abort()
+        MenuLib.abort()
 
 # Print to the VS Code window that the button functions have been defined
 print("Functions Defined", file=stderr)
@@ -95,10 +95,8 @@ print("Map Defined", file=stderr)
 
 # Start the infinite menu loop
 while True:
-    # This updates the status and process id of the mission process every loop cycle
-    from MenuLib import mission
     # Store the list of buttons currently pressed as buttonlist
-    buttonlist = robot.btn.buttons_pressed
+    buttonlist = MenuLib.robot.btn.buttons_pressed
     # Check if there are any buttons pressed; if there is, run the corresponding function
     if buttonlist:
         buttonMap[buttonlist[0]]()
@@ -106,6 +104,6 @@ while True:
     loopIndex = (loopIndex + 1) % 100
     # Make sure there is no mission running (to prevent resource conflicts), 
     # and if there is none, display the sensor values and update the light color based on the gyro sensor
-    if not mission.is_alive():
-        checkDrift()
-        displaySensor()
+    if not MenuLib.mission.is_alive():
+        MenuLib.checkDrift()
+        MenuLib.displaySensor()
