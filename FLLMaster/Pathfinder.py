@@ -27,6 +27,7 @@
 
 
 import math
+from sys import stderr
 import time
 
 class Rotation2d:
@@ -126,7 +127,7 @@ class Rotation2d:
         ``other``: The rotation to rotate by.
         Returns: The new rotated Rotation2d.
         """
-        return Rotation2d.fromCoords(self.cos * other.cos - self.sin * other.sin, self.cos * other.cos + self.sin * other.sin)
+        return Rotation2d.fromCoords(self.cos * other.cos - self.sin * other.sin, self.cos * other.sin + self.sin * other.cos)
 
     def getRadians(self) -> float:
         """
@@ -322,7 +323,7 @@ class Pose2d:
     """
     Represents a 2d pose containing translational and rotational elements.
     """
-    def __init__(self, translation = Translation2d(), rotation = Rotation2d()):
+    def __init__(self, translation : Translation2d = None, rotation : Rotation2d = None):
         """
         Constructs a pose with the specified translation and rotation.
         
@@ -330,8 +331,10 @@ class Pose2d:
         
         ``rotation``: The rotational component of the pose.
         """
-        self.translation = translation
-        self.rotation = rotation
+        tEmpty = Translation2d()
+        rEmpty = Rotation2d()
+        self.translation = translation if translation is not None else tEmpty
+        self.rotation = rotation if rotation is not None else rEmpty
 
     @classmethod
     def fromCoords(cls, x: float, y: float, rotation: Rotation2d):
@@ -398,8 +401,8 @@ class Pose2d:
         ``other``: The transform to transform the pose by.
         """
         return Pose2d(
-            self.translation.plus(other.getTranslation().rotateBy(self.rotation)),
-            self.rotation.plus(other.getRotation()))
+            self.getTranslation().plus(other.getTranslation().rotateBy(self.getRotation())),
+            self.getRotation().plus(other.getRotation()))
     
     def relativeTo(self, other: "Pose2d"):
         """
@@ -492,8 +495,8 @@ class Pose2d:
         """
         if isinstance(obj, Pose2d):
             return (
-                obj.translation.equals(self.translation)
-                and obj.rotation.equals(self.rotation)
+                obj.getTranslation() == self.getTranslation()
+                and obj.getRotation() == self.getRotation()
             )
         else:
             return False
@@ -502,7 +505,7 @@ class Transform2d:
     """
     Represents a transformation for a Pose2d.
     """
-    def __init__(self, translation = Translation2d(), rotation = Rotation2d()) -> None:
+    def __init__(self, translation : Translation2d = None, rotation: Rotation2d = None) -> None:
         """
         Constructs a transform with the given translation and rotation components.
         
@@ -510,8 +513,10 @@ class Transform2d:
         
         ``rotation``: Rotational component of the transform.
         """
-        self.translation = translation
-        self.rotation = rotation
+        tEmpty = Translation2d()
+        rEmpty = Rotation2d()
+        self.translation = translation if translation is not None else tEmpty
+        self.rotation = rotation if rotation is not None else rEmpty
     
     @classmethod
     def from_Poses(cls, initial: Pose2d, last: Pose2d):
@@ -537,7 +542,7 @@ class Transform2d:
 
         Returns: the scaled Transform2d.
         """
-        return Transform2d(self.translation.times(scalar), self.rotation.times(scalar))
+        return Transform2d(self.getTranslation().times(scalar), self.getRotation().times(scalar))
 
     def plus(self, other: "Transform2d"):
         """
@@ -547,7 +552,7 @@ class Transform2d:
 
         Returns: The composition of the two transformations.
         """
-        return Transform2d.from_Poses(Pose2d.empty(), Pose2d.empty().transformBy(self).transformBy(other))
+        return Transform2d.from_Poses(Pose2d(), Pose2d().transformBy(self).transformBy(other))
 
     def getTranslation(self):
         """
@@ -597,8 +602,8 @@ class Transform2d:
         """
         if isinstance(obj, Transform2d):
             return (
-                obj.translation.equals(self.translation)
-                and obj.rotation.equals(self.rotation))
+                obj.getTranslation() == self.getTranslation()
+                and obj.getRotation() == self.getRotation())
         else:
             return False
 
@@ -650,7 +655,7 @@ class DifferentialDriveOdometry:
     It is important that you reset your encoders to zero before using this class. Any subsequent
     pose resets also require the encoders to be reset to zero.
     """
-    def __init__(self, gyroAngle: Rotation2d, initialPoseMeters = Pose2d()):
+    def __init__(self, gyroAngle: Rotation2d, initialPoseMeters : Pose2d = None):
         """
         Constructs a DifferentialDriveOdometry object.
 
@@ -658,9 +663,12 @@ class DifferentialDriveOdometry:
 
         ``initialPoseMeters`` The starting position of the robot on the field.
         """
-        self.poseMeters = initialPoseMeters
+        pEmpty = Pose2d()
+        self.poseMeters = initialPoseMeters if initialPoseMeters is not None else pEmpty
         self.gyroOffset = self.poseMeters.getRotation().minus(gyroAngle)
-        self.previousAngle = initialPoseMeters.getRotation()
+        self.previousAngle = self.poseMeters.getRotation()
+        self.prevLeftDistance = 0.0
+        self.prevRightDistance = 0.0
     
     def resetPosition(self, poseMeters: Pose2d, gyroAngle: Rotation2d):
         """
@@ -714,7 +722,7 @@ class DifferentialDriveOdometry:
         
         self.previousAngle = angle
 
-        self.poseMeters = Pose2d(newPose.getTranslation, angle)
+        self.poseMeters = Pose2d(newPose.getTranslation(), angle)
         return self.poseMeters
 
 class ChassisSpeeds:
@@ -778,7 +786,7 @@ class Trajectory:
     represent the pose, curvature, time elapsed, velocity, and acceleration at that point.
     """
     
-    states: 'list[State]'
+    #states: list["State"] = []
     
     def __init__(self):
         """
@@ -994,7 +1002,7 @@ class Trajectory:
         timeSeconds = 0.0,
         velocityMetersPerSecond = 0.0,
         accelerationMetersPerSecondSq = 0.0,
-        poseMeters = Pose2d(),
+        poseMeters: Pose2d = None,
         curvatureRadPerMeter = 0.0):
             """
             Constructs a State with the specified parameters.
@@ -1005,10 +1013,11 @@ class Trajectory:
             ``poseMeters``: The pose at that point of the trajectory.
             ``curvatureRadPerMeter``: The curvature at that point of the trajectory.
             """
+            pEmpty = Pose2d()
             self.timeSeconds = timeSeconds
             self.velocityMetersPerSecond = velocityMetersPerSecond
             self.accelerationMetersPerSecondSq = accelerationMetersPerSecondSq
-            self.poseMeters = poseMeters
+            self.poseMeters = poseMeters if poseMeters is not None else pEmpty
             self.curvatureRadPerMeter = curvatureRadPerMeter
         
         def interpolate(self, endValue: 'Trajectory.State', i):
@@ -1069,7 +1078,7 @@ class Trajectory:
                 return True
             if not isinstance(obj, Trajectory.State):
                 return False
-            obj: Trajectory.State
+            #obj: Trajectory.State
             return (obj.timeSeconds == self.timeSeconds and
                 obj.velocityMetersPerSecond == self.velocityMetersPerSecond and
                 obj.accelerationMetersPerSecondSq == self.accelerationMetersPerSecondSq and
@@ -1106,8 +1115,8 @@ class RamseteController:
     See https://file.tavsys.net/control/controls-engineering-in-frc.pdf section on Ramsete unicycle
     controller for a derivation and analysis.
     """
-    poseError = Pose2d.empty()
-    poseTolerance = Pose2d.empty()
+    poseError = Pose2d()
+    poseTolerance = Pose2d()
     enabled = True
 
     def __init__(self, b = 2.0, zeta = 7.0):
@@ -1423,15 +1432,15 @@ class PIDController:
     """
     maximumIntegral = 1.0
     minimumIntegral = -1.0
-    continuous: bool
-    positionError: float
-    velocityError: float
-    prevError: float
-    totalError: float
+    # continuous: bool
+    # positionError: float
+    # velocityError: float
+    # prevError: float
+    # totalError: float
     positionTolerance = 0.05
     velocityTolerance = math.inf
-    setpoint: float
-    measurement: float
+    # setpoint: float
+    # measurement: float
 
     def __init__(self, kp, ki, kd, period = 0.02):
         """
@@ -1652,9 +1661,9 @@ class Timer:
     """
     A timer class.
     """
-    startTime: float
-    accumulatedTime: float
-    running: bool
+    # startTime: float
+    # accumulatedTime: float
+    # running: bool
 
     @classmethod
     def getTime(cls):

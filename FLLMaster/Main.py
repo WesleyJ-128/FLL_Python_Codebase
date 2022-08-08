@@ -107,3 +107,6 @@ while True:
     if not MenuLib.mission.is_alive():
         MenuLib.checkDrift()
         MenuLib.displaySensor()
+    
+    wheels = MenuLib.robot.getWheelPositions()
+    MenuLib.robot.odometry.update(MenuLib.robot.getYaw(), wheels[0], wheels[1])

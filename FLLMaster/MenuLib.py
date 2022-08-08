@@ -66,6 +66,7 @@ def runCurrentMission():
     Gets the currently selected mission from ``Missions.py`` and runs it.  Once the mission has completed, 
     it stops the motors and allows them to glide to allow for manual robot positioning.
     """
+    global robot
     # Finds the object in Missions.py that has the same name as the currently selected mission 
     # (count - 1 is used because count starts at 1 not 0), and creates the function pointer 
     # method_to_call, which is the selected mission

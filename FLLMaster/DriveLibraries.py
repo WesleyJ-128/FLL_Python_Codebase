@@ -5,6 +5,8 @@ from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
 
+from Pathfinder import DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, Pose2d, Rotation2d
+
 # Global Variables for color sensor calibration
 reflHighVal = 100
 reflLowVal = 0
@@ -143,7 +145,12 @@ class Robot:
         else:
             self.GyroInvertedNum = 1
         
-        # Beep to signify the robot isdone initialization (it takes a while)
+        self.odometry = DifferentialDriveOdometry(self.getYaw())
+        self.kinematics = DifferentialDriveKinematics(self.WidthBetweenWheels / 100)
+        self.wheelPositions = [0.0, 0.0]
+        self.currentYaw = self.getYaw()
+
+        # Beep to signify the robot is done initialization (it takes a while)
         self.spkr.beep()
 
     def reflectCal(self):
@@ -261,6 +268,9 @@ class Robot:
 
         # Check if the motors have gone far enough
         while avg < target:
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            self.currentYaw = self.getYaw()
             # Read the gyro
             current_angle = self.correctedAngle
 
@@ -331,6 +341,10 @@ class Robot:
         currentHeading = self.correctedAngle
         # Continue turning until the robot is within 1 degree of the target (can be reduced if necessary)
         while (currentHeading > 0.5 + Heading) or (currentHeading < Heading - 0.5):
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
             # Calculate the difference between where the robot should be and where it is
             currentDifference = Heading - currentHeading
             # The sign variable defines the direction in which to turn. It should have the same sign as the currentDifference variable.
@@ -383,10 +397,16 @@ class Robot:
         # Otherwise, wait for the degrees turned to become <= Degrees
         if Degrees > 0:
             while (self.correctedAngle - startHeading) < Degrees:
-                pass
+                # Update WheelPositions
+                self.wheelPositions = self.getWheelPositions()
+                # Update yaw
+                self.currentYaw = self.getYaw()
         else:
             while (self.correctedAngle - startHeading) > Degrees:
-                pass
+                # Update WheelPositions
+                self.wheelPositions = self.getWheelPositions()
+                # Update yaw
+                self.currentYaw = self.getYaw()
         
         # Stop the motors
         self.tank.stop()
@@ -441,6 +461,10 @@ class Robot:
 
         # Check if the motors have slowed down (because the robot hit something)
         while avgSpd > 0.90 * target:
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
             # Read the gyro
             current_angle = self.correctedAngle
 
@@ -555,6 +579,10 @@ class Robot:
 
         # Check if the motors have gone far enough
         while not end:
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
             # Read the gyro
             current_angle = self.correctedAngle
 
@@ -584,9 +612,9 @@ class Robot:
         # If the robot is to stop, stop the motors.  Otherwise, leave the motors on.
         if not Stop == False:
             self.steer.stop()
-        
         # Set the brick light back to green flashing
         #EVS.SetLEDColor("GREEN", "PULSE")
+        return
     
     def LineFollow(self, Distance, Speed, Stop):
         """
@@ -628,6 +656,10 @@ class Robot:
 
         # Check if the motors have gone far enough
         while avg < target:
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
             # Read the gyro
             current_RLI = self.correctedRLI
 
@@ -724,6 +756,10 @@ class Robot:
 
         # Check if the motors have gone far enough
         while avg < target:
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
             # Read the gyro and ultrasonic sensors
             current_angle = self.correctedAngle
             dist_to_obstacle = self.us.distance_centimeters
@@ -848,6 +884,10 @@ class Robot:
 
         # Check if the motors have gone far enough
         while avg < target:
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
             # Read the gyro and ultrasonic sensors
             current_angle = self.correctedAngle
             dist_to_obstacle = self.us.distance_centimeters
@@ -917,3 +957,22 @@ class Robot:
         
         # Stop the motors.
         self.steer.stop()
+    
+    def getYaw(self):
+        """
+        Returns a Rotation2d of the robot's rotation.  CCW positive.
+        """
+        return Rotation2d(math.radians(-self.correctedAngle))
+    
+    def getPose(self):
+        return self.odometry.getPoseMeters()
+    
+    def getWheelSpeeds(self):
+        return DifferentialDriveWheelSpeeds(self.lm.speed * self.WheelCircumference / (100 * self.lm.count_per_rot),
+            self.rm.speed * self.WheelCircumference / (100 * self.rm.count_per_rot))
+    
+    def getWheelPositions(self):
+        wheels = []
+        wheels.append(self.lm.degrees * self.WheelCircumference / 36000)
+        wheels.append(self.rm.degrees * self.WheelCircumference / 36000)
+        return wheels
