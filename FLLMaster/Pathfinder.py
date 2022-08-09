@@ -915,11 +915,12 @@ class Trajectory:
         for i in range(1, len(self.states)):
             state = self.states[i]
             newStates.append(
-                state.timeSeconds,
-                state.velocityMetersPerSecond,
-                state.accelerationMetersPerSecondSq,
-                newFirstPose.plus(state.poseMeters.minus(firstPose)),
-                state.curvatureRadPerMeter)
+                Trajectory.State(
+                    state.timeSeconds,
+                    state.velocityMetersPerSecond,
+                    state.accelerationMetersPerSecondSq,
+                    newFirstPose.plus(state.poseMeters.minus(firstPose)),
+                    state.curvatureRadPerMeter))
         
         return Trajectory.from_states(newStates)
     
@@ -1104,7 +1105,7 @@ class RamseteController:
     poseTolerance = Pose2d()
     enabled = True
 
-    def __init__(self, b = 2.0, zeta = 7.0):
+    def __init__(self, b = 2.0, zeta = 0.7):
         """
         Construct a Ramsete unicycle controller.
 

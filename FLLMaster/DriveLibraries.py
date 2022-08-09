@@ -1,4 +1,6 @@
 # The program doesn't work without this.  Not sure why.
+from asyncore import write
+import re
 from sys import stderr
 from time import sleep
 from typing import Callable
@@ -6,7 +8,7 @@ from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
 
-from Pathfinder import ChassisSpeeds, DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, PIDController, Pose2d, RamseteController, Rotation2d, SimpleMotorFeedforward, Timer, Trajectory
+from Pathfinder import ChassisSpeeds, DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, PIDController, Pose2d, RamseteController, Rotation2d, SimpleMotorFeedforward, Timer, Trajectory, Transform2d
 
 # Global Variables for color sensor calibration
 reflHighVal = 100
@@ -68,6 +70,8 @@ class Robot:
         self.kv = float(conf.get('Drivebase', 'kv'))
         self.ka = float(conf.get('Drivebase', 'ka'))
         self.RamseteKp = float(conf.get('Drivebase', 'RamseteKp'))
+        self.b = float(conf.get('Drivebase', 'b'))
+        self.zeta = float(conf.get('Drivebase', 'zeta'))
 
         # Read the sensor ports from the config file, and store.  "eval()" is used because the port names "INPUT_#",
         # where # is a number, 1 - 4, are variables used as constants, and reading as a string does not work.
@@ -80,6 +84,8 @@ class Robot:
         self.kpLine = float(conf.get('Sensors', 'kpLine'))
         self.kiLine = float(conf.get('Sensors', 'kiLine'))
         self.kdLine = float(conf.get('Sensors', 'kdLine'))
+
+        self.log = open("log.txt", "w")
 
         # Read the auxillary motor ports, if any, from the config file, and store.  "eval()" is used because the port names "OUTPUT_#",
         # where # is a capital letter, A - D, are variables used as constants, and reading as a string does not work.
@@ -983,7 +989,6 @@ class Robot:
         return wheels
 
     def cappedTank(self, left, right):
-        #print(str(left) + ", " + str(right), file=stderr)
         left = min([max([left, -100]), 100])
         right = min([max([right, -100]), 100])
         self.tank.on(left, right)
@@ -1043,6 +1048,7 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
 
             curTime = timer.get()
             dt = curTime - prevTime
@@ -1054,6 +1060,9 @@ class Robot:
             targetWheelSpeeds = kinematics.toWheelSpeeds(
                 controller.calculateFromState(pose(), trajectory.sample(curTime)))
             
+            realPose = pose()
+            shouldbe = trajectory.sample(curTime).poseMeters
+            #self.log.write("{}, {}, {}, {}, {}, {}\n".format(realPose.getX(), shouldbe.getX(), realPose.getY(), shouldbe.getY(), realPose.getRotation().getDegrees(), shouldbe.getRotation().getDegrees()))
             leftSpeedSetpoint = targetWheelSpeeds.leftMetersPerSecond
             rightSpeedSetpoint = targetWheelSpeeds.rightMetersPerSecond
 
@@ -1063,11 +1072,11 @@ class Robot:
                 
                 rightFeedforward = feedforward.calculate(
                     rightSpeedSetpoint, (rightSpeedSetpoint - prevSpeeds.rightMetersPerSecond) / dt)
-                print("{}, {}".format(leftFeedforward, rightFeedforward), file=stderr)
                 
                 leftOutput = leftFeedforward + leftController.calculate(wheelSpeeds().leftMetersPerSecond, leftSpeedSetpoint)
 
                 rightOutput = rightFeedforward + rightController.calculate(wheelSpeeds().rightMetersPerSecond, rightSpeedSetpoint)
+                #print("{}, {}, {}, {}".format(wheelSpeeds().leftMetersPerSecond, leftSpeedSetpoint, wheelSpeeds().rightMetersPerSecond, rightSpeedSetpoint), file=stderr)
             else:
                 leftOutput = leftSpeedSetpoint
                 rightOutput = rightSpeedSetpoint
@@ -1077,13 +1086,15 @@ class Robot:
             prevTime = curTime
         timer.stop()
     
-    def FollowTrajectory(self, trajectory, stop):
-        
+    def FollowTrajectory(self, trajectory: Trajectory, stop):
+        pose = self.odometry.getPoseMeters().minus(trajectory.getInitialPose())
+        transform = Transform2d(pose.getTranslation(), pose.getRotation())
+        trajectory = trajectory.transformBy(transform)
         
         self.ramseteFollower(
             trajectory,
             self.getPose,
-            RamseteController(),
+            RamseteController(self.b, self.zeta),
             DifferentialDriveKinematics(self.WidthBetweenWheels / 100),
             self.cappedTank,
             SimpleMotorFeedforward(self.ks, self.kv, self.ka),
@@ -1091,5 +1102,6 @@ class Robot:
             PIDController(self.RamseteKp, 0, 0),
             PIDController(self.RamseteKp, 0, 0))
         
-        self.tank.off()
+        if stop:
+            self.tank.off()
         

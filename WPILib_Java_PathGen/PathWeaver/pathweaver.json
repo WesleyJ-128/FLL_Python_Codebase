@@ -1,0 +1,9 @@
+{
+  "lengthUnit": "Meter",
+  "exportUnit": "Always Meters",
+  "maxVelocity": 0.6,
+  "maxAcceleration": 1.0,
+  "trackWidth": 0.1101,
+  "gameName": "City Shaper",
+  "outputDir": ".."
+}

@@ -9,23 +9,18 @@ from DriveLibraries import Robot
 from Pathfinder import TrajectoryUtil
 
 trajFile = open("Trajectory.txt")
-list = eval(trajFile.read())
-trajectory = TrajectoryUtil.createTrajectoryFromElements(list)
+trajectories = []
+while True:
+    line = trajFile.readline()
+    if not line:
+        break
+    trajectories.append(TrajectoryUtil.createTrajectoryFromElements(eval(line)))
 
 robot = Robot('robot.cfg')
-def drive():
-    robot.FollowTrajectory(trajectory, True)
-program = Thread(target=drive)
-program.start()
-loopIndex = 0
-while True:
-    if not program.isAlive():
-        robot.wheelPositions = robot.getWheelPositions()
-        robot.currentYaw = robot.getYaw()
-    robot.odometry.update(robot.currentYaw, robot.wheelPositions[0], robot.wheelPositions[1])
-    loopIndex += 1
-    #if loopIndex % 20 == 0:
-    #    print(robot.getPose(), file=stderr)
+
+robot.FollowTrajectory(trajectories[0], True)
+robot.FollowTrajectory(trajectories[1], True)
+robot.FollowTrajectory(trajectories[2], True)
 
 
 
