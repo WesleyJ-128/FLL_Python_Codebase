@@ -1062,7 +1062,7 @@ class Robot:
             
             realPose = pose()
             shouldbe = trajectory.sample(curTime).poseMeters
-            #self.log.write("{}, {}, {}, {}, {}, {}\n".format(realPose.getX(), shouldbe.getX(), realPose.getY(), shouldbe.getY(), realPose.getRotation().getDegrees(), shouldbe.getRotation().getDegrees()))
+            self.log.write("{}, {}, {}, {}, {}, {}\n".format(realPose.getX(), shouldbe.getX(), realPose.getY(), shouldbe.getY(), realPose.getRotation().getDegrees(), shouldbe.getRotation().getDegrees()))
             leftSpeedSetpoint = targetWheelSpeeds.leftMetersPerSecond
             rightSpeedSetpoint = targetWheelSpeeds.rightMetersPerSecond
 

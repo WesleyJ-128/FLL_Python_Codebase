@@ -18,9 +18,11 @@ while True:
 
 robot = Robot('robot.cfg')
 
-robot.FollowTrajectory(trajectories[0], True)
-robot.FollowTrajectory(trajectories[1], True)
-robot.FollowTrajectory(trajectories[2], True)
+#robot.FollowTrajectory(trajectories[0], True)
+#robot.FollowTrajectory(trajectories[1], True)
+robot.FollowTrajectory(trajectories[3], True)
+robot.btn.wait_for_bump("enter")
+robot.FollowTrajectory(trajectories[4], True)
 
 
 

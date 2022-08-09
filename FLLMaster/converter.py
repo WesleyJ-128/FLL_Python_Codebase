@@ -1,7 +1,7 @@
 import json
 
 
-file = open("../WPILib_Java_PathGen/src/main/deploy/paths/Blocks.wpilib.json")
+file = open("../WPILib_Java_PathGen/src/main/deploy/paths/Loop.wpilib.json")
 dict = json.loads(file.read())
 list = []
 for i in dict:
