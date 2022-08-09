@@ -186,7 +186,6 @@ class Translation2d:
         Constructs a Translation2d with the X and Y components equal to the provided values.
 
         ``x``: The x component of the translation.
-        
         ``y``: The y component of the translation.
         """
         self.x = x
@@ -199,7 +198,6 @@ class Translation2d:
         from polar coordinates to Cartesian coordinates.
 
         ``distance`` The distance from the origin to the end of the translation.
-        
         ``angle`` The angle between the x-axis and the translation vector.
         """
         return cls(distance * angle.getCos(), distance * angle.getSin())
@@ -328,7 +326,6 @@ class Pose2d:
         Constructs a pose with the specified translation and rotation.
         
         ``translation``: The translational component of the pose.
-        
         ``rotation``: The rotational component of the pose.
         """
         tEmpty = Translation2d()
@@ -342,9 +339,7 @@ class Pose2d:
         Convenience constructors that takes in x and y values directly instead of having to construct a Translation2d.
         
         ``x``: The x component of the translational component of the pose.
-        
         ``y``: The y component of the translational component of the pose.
-        
         ``rotation``: The rotational component of the pose.
         """
         return cls(Translation2d(x, y), rotation)
@@ -510,7 +505,6 @@ class Transform2d:
         Constructs a transform with the given translation and rotation components.
         
         ``translation``: Translational component of the transform.
-        
         ``rotation``: Rotational component of the transform.
         """
         tEmpty = Translation2d()
@@ -524,7 +518,6 @@ class Transform2d:
         Constructs the transform that maps the initial pose to the final pose.
         
         ``initial``: The initial pose for the transformation.
-        
         ``last``: The final pose for the transformation.
         """
         # We are rotating the difference between the translations
@@ -619,9 +612,7 @@ class Twist2d:
         Constructs a Twist2d with the given values.
         
         ``dx``: Change in x direction relative to robot.
-        
         ``dy``: Change in y direction relative to robot.
-        
         ``dtheta``: Change in angle relative to robot.
         """
         self.dx = dx
@@ -659,8 +650,7 @@ class DifferentialDriveOdometry:
         """
         Constructs a DifferentialDriveOdometry object.
 
-        ``gyroAngle``: The angle reported by the gyroscope
-
+        ``gyroAngle``: The angle reported by the gyroscope.
         ``initialPoseMeters`` The starting position of the robot on the field.
         """
         pEmpty = Pose2d()
@@ -680,7 +670,6 @@ class DifferentialDriveOdometry:
         automatically takes care of offsetting the gyro angle.
         
         ``poseMeters``: The position on the field that your robot is at.
-        
         ``gyroAngle``: The angle reported by the gyroscope.
         """
         self.poseMeters = poseMeters
@@ -703,9 +692,7 @@ class DifferentialDriveOdometry:
         advantageous for teams that are using lower CPR encoders.
 
         ``gyroAngle``: The angle reported by the gyroscope.
-
         ``leftDistanceMeters``: The distance traveled by the left encoder.
-
         ``rightDistanceMeters``: The distance traveled by the right encoder.
         """
         deltaLeftDistance = leftDistanceMeters - self.prevLeftDistance
@@ -759,12 +746,9 @@ class ChassisSpeeds:
         
         ``vxMetersPerSecond``: The component of speed in the x direction relative to the field.
             Positive x is away from your alliance wall.
-        
         ``vyMetersPerSecond``: The component of speed in the y direction relative to the field.
             Positive y is to your left when standing behind the alliance wall.
-        
         ``omegaRadiansPerSecond``: The angular rate of the robot.
-        
         ``robotAngle``: The angle of the robot as measured by a gyroscope. The robot's angle is
             considered to be zero when it is facing directly away from your alliance station wall.
             Remember that this should be CCW positive.
@@ -807,7 +791,8 @@ class Trajectory:
         traj.totalTimeSeconds = states[len(states) - 1].timeSeconds
         return traj
     
-    def lerpVal(self, startValue, endValue, t):
+    @classmethod
+    def lerpVal(cls, startValue, endValue, t):
         """
         Linearly interpolates between two values.
 
@@ -819,7 +804,8 @@ class Trajectory:
         """
         return startValue + (endValue - startValue) * t
 
-    def lerpPose(self, startValue: Pose2d, endValue: Pose2d, t):
+    @classmethod
+    def lerpPose(cls, startValue: Pose2d, endValue: Pose2d, t):
         """
         Linearly interpolates between two poses.
 
@@ -844,13 +830,13 @@ class Trajectory:
         """
         return self.totalTimeSeconds
     
-    def getStates(self):
+    def getStates(self) -> 'list[Trajectory.State]':
         """
         Returns the states of the trajectory.
         """
         return self.states
     
-    def sample(self, timeSeconds):
+    def sample(self, timeSeconds) -> 'Trajectory.State':
         """
         Sample the trajectory at a point in time.
 
@@ -873,7 +859,7 @@ class Trajectory:
         high = len(self.states) - 1
 
         while low is not high:
-            mid = (low + high) / 2
+            mid = int((low + high) / 2)
             if self.states[mid].timeSeconds < timeSeconds:
                 # This index and everything under it are less than the requested
                 # timestamp. Therefore, we can discard them.
@@ -1025,7 +1011,6 @@ class Trajectory:
             Interpolates between two States.
 
             ``endValue``: The end value for the interpolation.
-
             ``i``: The interpolant (fraction).
 
             Returns: The interpolated state.
@@ -1085,7 +1070,7 @@ class Trajectory:
                 obj.curvatureRadPerMeter == self.curvatureRadPerMeter and
                 obj.poseMeters == self.poseMeters)
     def __repr__(self):
-        stateList = ", \n".join(self.states)
+        stateList = ", \n".join([str(state) for state in self.states])
         return "Trajectory - Seconds: {}, States:\n{}".format(self.totalTimeSeconds, stateList)
     
     def __eq__(self, obj: object):
@@ -1125,7 +1110,6 @@ class RamseteController:
 
         ``b``: Tuning parameter (b &gt; 0 rad²/m²) for which larger values make convergence more
         aggressive like a proportional term.
-        
         ``zeta``: Tuning parameter (0 rad⁻¹ &lt; zeta &lt; 1 rad⁻¹) for which larger values provide
         more damping in response.
         """
@@ -1243,7 +1227,6 @@ class SimpleMotorFeedforward:
         Calculates the feedforward from the gains and setpoints.
 
         ``velocity``: The velocity setpoint.
-
         ``acceleration``: The acceleration setpoint.
 
         Returns: The computed feedforward.
@@ -1258,7 +1241,6 @@ class SimpleMotorFeedforward:
         simultaneously-achievable velocity constraint.
 
         ``maxVoltage``: The maximum voltage that can be supplied to the motor.
-
         ``acceleration``: The acceleration of the motor.
 
         Returns: The maximum possible velocity at the given acceleration.
@@ -1273,7 +1255,6 @@ class SimpleMotorFeedforward:
         simultaneously-achievable velocity constraint.
 
         ``maxVoltage``: The maximum voltage that can be supplied to the motor.
-
         ``acceleration``: The acceleration of the motor.
 
         Returns: The minimum possible velocity at the given acceleration.
@@ -1289,7 +1270,6 @@ class SimpleMotorFeedforward:
         simultaneously-achievable acceleration constraint.
 
         ``maxVoltage``: The maximum voltage that can be supplied to the motor.
-
         ``velocity``: The velocity of the motor.
 
         Returns: The maximum possible acceleration at the given velocity.
@@ -1304,7 +1284,6 @@ class SimpleMotorFeedforward:
         simultaneously-achievable acceleration constraint.
 
         ``maxVoltage``: The maximum voltage that can be supplied to the motor.
-
         ``velocity``: The velocity of the motor.
 
         Returns: The minimum possible acceleration at the given velocity.
@@ -1393,9 +1372,7 @@ class MathUtil:
         Returns modulus of input.
         
         ``input`` Input value to wrap.
-        
         ``minimumInput`` The minimum value expected from the input.
-        
         ``maximumInput`` The maximum value expected from the input.
         
         Returns: The wrapped value.
@@ -1417,14 +1394,12 @@ class MathUtil:
         Returns value clamped between low and high boundaries.
 
         ``value``: Value to clamp.
-        
         ``low``: The lower boundary to which to clamp value.
-        
         ``high``: The higher boundary to which to clamp value.
         
         Returns : The clamped value.
         """
-        return max(low, min(value, high))
+        return max([low, min([value, high])])
 
 class PIDController:
     """
@@ -1432,11 +1407,11 @@ class PIDController:
     """
     maximumIntegral = 1.0
     minimumIntegral = -1.0
-    # continuous: bool
-    # positionError: float
-    # velocityError: float
-    # prevError: float
-    # totalError: float
+    continuous = False
+    positionError = 0
+    velocityError = 0
+    prevError = 0
+    totalError = 0
     positionTolerance = 0.05
     velocityTolerance = math.inf
     # setpoint: float
@@ -1448,9 +1423,7 @@ class PIDController:
 
         
         ``kp``: The proportional coefficient.
-        
         ``ki``: The integral coefficient.
-        
         ``kd``: The derivative coefficient.
         ``period``: The period between controller updates in seconds. Must be non-zero and positive.
         """
@@ -1468,9 +1441,7 @@ class PIDController:
         Set the proportional, integral, and differential coefficients.
 
         ``kp``: The proportional coefficient.
-        
         ``ki``: The integral coefficient.
-        
         ``kd``: The derivative coefficient.
         """
         self.kp = kp
@@ -1566,7 +1537,6 @@ class PIDController:
         same point and automatically calculates the shortest route to the setpoint.
         
         ``minimumInput``: The minimum value expected from the input.
-        
         ``maximumInput``: The maximum value expected from the input.
         """
         self.continuous = True
@@ -1592,7 +1562,6 @@ class PIDController:
         the integrator value times the integral gain.
         
         ``minimumIntegral``: The minimum value of the integrator.
-        
         ``maximumIntegral``: The maximum value of the integrator.
         """
         self.minimumIntegral = minimumIntegral
@@ -1603,7 +1572,6 @@ class PIDController:
         Sets the error which is considered tolerable for use with atSetpoint().
         
         ``positionTolerance``: Position error which is tolerable.
-        
         ``velocityTolerance``: Velocity error which is tolerable.
         """
         self.positionTolerance = positionTolerance
@@ -1626,7 +1594,6 @@ class PIDController:
         Returns the next output of the PID controller.
         
         ``measurement``: The current measurement of the process variable.
-        
         ``setpoint``: The new setpoint of the controller.
         """
         if setpoint is not None:
@@ -1663,7 +1630,7 @@ class Timer:
     """
     # startTime: float
     # accumulatedTime: float
-    # running: bool
+    running = False
 
     @classmethod
     def getTime(cls):
@@ -1682,8 +1649,8 @@ class Timer:
     def __init__(self):
         self.reset()
     
-    def getMsClock(self):
-        return time.time() * 1000
+    # def getMsClock(self):
+    #     return time.time() * 1000
     
     def get(self):
         """
@@ -1692,7 +1659,7 @@ class Timer:
         the time when it was last stopped.
         """
         if self.running:
-            return self.accumulatedTime + (self.getMsClock() - self.startTime) / 1000
+            return self.accumulatedTime + (self.getTime() - self.startTime)
         else:
             return self.accumulatedTime
     
@@ -1703,7 +1670,7 @@ class Timer:
         Make the timer startTime the current time so new requests will be relative now.
         """
         self.accumulatedTime = 0
-        self.startTime = self.getMsClock()
+        self.startTime = self.getTime()
     
     def start(self):
         """
@@ -1712,7 +1679,7 @@ class Timer:
         already running.
         """
         if not self.running:
-            self.startTime = self.getMsClock()
+            self.startTime = self.getTime()
             self.running = True
     
     def stop(self):
@@ -1743,3 +1710,18 @@ class Timer:
             return True
         else:
             return False
+
+class TrajectoryUtil:
+    def createTrajectoryFromElements(elements: 'list[float]'):
+        if len(elements) % 7 is not 0:
+            raise ValueError("Invalid list")
+        states = []
+        for i in range(0, len(elements), 7):
+            states.append(
+                Trajectory.State(
+                    elements[i],
+                    elements[i + 1],
+                    elements[i + 2],
+                    Pose2d.fromCoords(elements[i + 3], elements[i + 4], Rotation2d(elements[i + 5])),
+                    elements[i + 6]))
+        return Trajectory.from_states(states)

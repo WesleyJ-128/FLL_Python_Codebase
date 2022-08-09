@@ -1,11 +1,12 @@
 # The program doesn't work without this.  Not sure why.
 from sys import stderr
 from time import sleep
+from typing import Callable
 from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
 
-from Pathfinder import DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, Pose2d, Rotation2d
+from Pathfinder import ChassisSpeeds, DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, PIDController, Pose2d, RamseteController, Rotation2d, SimpleMotorFeedforward, Timer, Trajectory
 
 # Global Variables for color sensor calibration
 reflHighVal = 100
@@ -63,6 +64,10 @@ class Robot:
         self.kp = float(conf.get('Drivebase', 'kp'))
         self.ki = float(conf.get('Drivebase', 'ki'))
         self.kd = float(conf.get('Drivebase', 'kd'))
+        self.ks = float(conf.get('Drivebase', 'ks'))
+        self.kv = float(conf.get('Drivebase', 'kv'))
+        self.ka = float(conf.get('Drivebase', 'ka'))
+        self.RamseteKp = float(conf.get('Drivebase', 'RamseteKp'))
 
         # Read the sensor ports from the config file, and store.  "eval()" is used because the port names "INPUT_#",
         # where # is a number, 1 - 4, are variables used as constants, and reading as a string does not work.
@@ -976,3 +981,115 @@ class Robot:
         wheels.append(self.lm.degrees * self.WheelCircumference / 36000)
         wheels.append(self.rm.degrees * self.WheelCircumference / 36000)
         return wheels
+
+    def cappedTank(self, left, right):
+        #print(str(left) + ", " + str(right), file=stderr)
+        left = min([max([left, -100]), 100])
+        right = min([max([right, -100]), 100])
+        self.tank.on(left, right)
+
+    def ramseteFollower(self,
+      trajectory: Trajectory,
+      pose: Callable[[None], Pose2d],
+      controller: RamseteController,
+      kinematics: DifferentialDriveKinematics,
+      output: Callable[[float, float], None],
+      feedforward: SimpleMotorFeedforward = None,
+      wheelSpeeds: Callable[[None], DifferentialDriveWheelSpeeds] = None,
+      leftController: PIDController = None,
+      rightController: PIDController = None):
+        """
+        Constructs a new RamseteCommand that, when executed, will follow the provided trajectory. 
+        If all optional parameters are provided, then PID control and feedforward are handled internally,
+        and outputs are scaled -1 to 1 representing motor percentage.  Otherwise performs no PID control
+        and calculates no feedforwards; outputs are the raw wheel speeds from the RAMSETE controller,
+        and will need to be converted into a usable form by the user.
+
+        Note: The controller will *not* set the output to zero upon completion of the path -
+        this is left to the user, since it is not appropriate for paths with nonstationary endstates.
+
+        
+        ``trajectory``: The trajectory to follow.
+        ``pose``: A function that supplies the robot pose - use one of the odometry classes to provide this.
+        ``controller``: The RAMSETE controller used to follow the trajectory.
+        ``feedforward``: The feedforward to use for the drive.
+        ``kinematics``: The kinematics for the robot drivetrain.
+        ``wheelSpeeds``: A function that supplies the speeds of the left and right sides of the robot drive.
+        ``leftController``: The PIDController for the left side of the robot drive.
+        ``rightController``: The PIDController for the right side of the robot drive.
+        ``outputVolts``: A function that consumes the computed left and right outputs for the robot drive.
+        """
+        timer = Timer()
+        if not feedforward:
+            usePID = False
+        else:
+            usePID = True
+        
+        prevTime = -1
+        initialState = trajectory.sample(0)
+        prevSpeeds = kinematics.toWheelSpeeds(
+            ChassisSpeeds(
+                initialState.velocityMetersPerSecond,
+                0,
+                initialState.curvatureRadPerMeter * initialState.velocityMetersPerSecond))
+        timer.reset()
+        timer.start()
+        if usePID:
+            leftController.reset()
+            rightController.reset()
+
+        while not timer.hasElapsed(trajectory.getTotalTimeSeconds()):
+            # Update WheelPositions
+            self.wheelPositions = self.getWheelPositions()
+            # Update yaw
+            self.currentYaw = self.getYaw()
+
+            curTime = timer.get()
+            dt = curTime - prevTime
+
+            if prevTime < 0:
+                output(0.0, 0.0)
+                prevTime = curTime
+                continue
+            targetWheelSpeeds = kinematics.toWheelSpeeds(
+                controller.calculateFromState(pose(), trajectory.sample(curTime)))
+            
+            leftSpeedSetpoint = targetWheelSpeeds.leftMetersPerSecond
+            rightSpeedSetpoint = targetWheelSpeeds.rightMetersPerSecond
+
+            if usePID:
+                leftFeedforward = feedforward.calculate(
+                    leftSpeedSetpoint, (leftSpeedSetpoint - prevSpeeds.leftMetersPerSecond) / dt)
+                
+                rightFeedforward = feedforward.calculate(
+                    rightSpeedSetpoint, (rightSpeedSetpoint - prevSpeeds.rightMetersPerSecond) / dt)
+                print("{}, {}".format(leftFeedforward, rightFeedforward), file=stderr)
+                
+                leftOutput = leftFeedforward + leftController.calculate(wheelSpeeds().leftMetersPerSecond, leftSpeedSetpoint)
+
+                rightOutput = rightFeedforward + rightController.calculate(wheelSpeeds().rightMetersPerSecond, rightSpeedSetpoint)
+            else:
+                leftOutput = leftSpeedSetpoint
+                rightOutput = rightSpeedSetpoint
+            
+            output(leftOutput, rightOutput)
+            prevSpeeds = targetWheelSpeeds
+            prevTime = curTime
+        timer.stop()
+    
+    def FollowTrajectory(self, trajectory, stop):
+        
+        
+        self.ramseteFollower(
+            trajectory,
+            self.getPose,
+            RamseteController(),
+            DifferentialDriveKinematics(self.WidthBetweenWheels / 100),
+            self.cappedTank,
+            SimpleMotorFeedforward(self.ks, self.kv, self.ka),
+            self.getWheelSpeeds,
+            PIDController(self.RamseteKp, 0, 0),
+            PIDController(self.RamseteKp, 0, 0))
+        
+        self.tank.off()
+        
