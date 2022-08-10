@@ -1,6 +1,4 @@
 # The program doesn't work without this.  Not sure why.
-from asyncore import write
-import re
 from sys import stderr
 from time import sleep
 from typing import Callable
@@ -8,7 +6,7 @@ from ev3dev2.motor import *
 from ev3dev2.sensor.lego import *
 from ev3dev2.sensor import *
 
-from Pathfinder import ChassisSpeeds, DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, PIDController, Pose2d, RamseteController, Rotation2d, SimpleMotorFeedforward, Timer, Trajectory, Transform2d
+from Pathfinder import ChassisSpeeds, DifferentialDriveKinematics, DifferentialDriveOdometry, DifferentialDriveWheelSpeeds, PIDController, Pose2d, RamseteController, Rotation2d, SimpleMotorFeedforward, Timer, Trajectory, TrajectoryUtil, Transform2d
 
 # Global Variables for color sensor calibration
 reflHighVal = 100
@@ -156,6 +154,21 @@ class Robot:
         else:
             self.GyroInvertedNum = 1
         
+        # Creates a dictionary of all trajectories in the robot.cfg file.
+        # The first line creates a list of tuples of the form (str(key), str(value)).
+        # The second line uses dictionary comprehension to create a dictionary of the form {'key': Trajectory}.
+        # The keys are simple, as they are already strings, so list[i][0] just takes the first element of the
+        # tuple currently being processed. The value needs to be converted from a string formatted as a list to
+        # a trajectory.  list[i][1] gets that string, then strip removes the brackets, and split converts it into
+        # a list of strings. List comprehension is used to convert each string to a float, and then the resulting
+        # lost of floats is passed to createTrajectoryFromElements.
+        list = conf.items('Trajectories')
+        self.trajectories = {
+            list[i][0]: TrajectoryUtil.createTrajectoryFromElements(
+                [float(j) for j in list[i][1].strip("[]").split(", ")]
+            )
+        for i in range(len(list))}
+        
         self.odometry = DifferentialDriveOdometry(self.getYaw())
         self.kinematics = DifferentialDriveKinematics(self.WidthBetweenWheels / 100)
         self.wheelPositions = [0.0, 0.0]
@@ -281,7 +294,10 @@ class Robot:
         while avg < target:
             # Update WheelPositions
             self.wheelPositions = self.getWheelPositions()
+            # Update Yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Read the gyro
             current_angle = self.correctedAngle
 
@@ -356,6 +372,8 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Calculate the difference between where the robot should be and where it is
             currentDifference = Heading - currentHeading
             # The sign variable defines the direction in which to turn. It should have the same sign as the currentDifference variable.
@@ -412,12 +430,16 @@ class Robot:
                 self.wheelPositions = self.getWheelPositions()
                 # Update yaw
                 self.currentYaw = self.getYaw()
+                # Update odometry
+                self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
         else:
             while (self.correctedAngle - startHeading) > Degrees:
                 # Update WheelPositions
                 self.wheelPositions = self.getWheelPositions()
                 # Update yaw
                 self.currentYaw = self.getYaw()
+                # Update odometry
+                self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
         
         # Stop the motors
         self.tank.stop()
@@ -476,6 +498,8 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Read the gyro
             current_angle = self.correctedAngle
 
@@ -594,6 +618,8 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Read the gyro
             current_angle = self.correctedAngle
 
@@ -671,6 +697,8 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Read the gyro
             current_RLI = self.correctedRLI
 
@@ -771,6 +799,8 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Read the gyro and ultrasonic sensors
             current_angle = self.correctedAngle
             dist_to_obstacle = self.us.distance_centimeters
@@ -899,6 +929,8 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
+            self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
             # Read the gyro and ultrasonic sensors
             current_angle = self.correctedAngle
             dist_to_obstacle = self.us.distance_centimeters
@@ -1048,6 +1080,7 @@ class Robot:
             self.wheelPositions = self.getWheelPositions()
             # Update yaw
             self.currentYaw = self.getYaw()
+            # Update odometry
             self.odometry.update(self.currentYaw, self.wheelPositions[0], self.wheelPositions[1])
 
             curTime = timer.get()
@@ -1076,7 +1109,6 @@ class Robot:
                 leftOutput = leftFeedforward + leftController.calculate(wheelSpeeds().leftMetersPerSecond, leftSpeedSetpoint)
 
                 rightOutput = rightFeedforward + rightController.calculate(wheelSpeeds().rightMetersPerSecond, rightSpeedSetpoint)
-                #print("{}, {}, {}, {}".format(wheelSpeeds().leftMetersPerSecond, leftSpeedSetpoint, wheelSpeeds().rightMetersPerSecond, rightSpeedSetpoint), file=stderr)
             else:
                 leftOutput = leftSpeedSetpoint
                 rightOutput = rightSpeedSetpoint
@@ -1087,9 +1119,10 @@ class Robot:
         timer.stop()
     
     def FollowTrajectory(self, trajectory: Trajectory, stop):
-        pose = self.odometry.getPoseMeters().minus(trajectory.getInitialPose())
-        transform = Transform2d(pose.getTranslation(), pose.getRotation())
-        trajectory = trajectory.transformBy(transform)
+        if not self.odometry.getPoseMeters() == trajectory.getInitialPose():
+            pose = self.odometry.getPoseMeters().minus(trajectory.getInitialPose())
+            transform = Transform2d(pose.getTranslation(), pose.getRotation())
+            trajectory = trajectory.transformBy(transform)
         
         self.ramseteFollower(
             trajectory,

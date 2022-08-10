@@ -8,22 +8,11 @@ import time
 from DriveLibraries import Robot
 from Pathfinder import TrajectoryUtil
 
-trajFile = open("Trajectory.txt")
-trajectories = []
-while True:
-    line = trajFile.readline()
-    if not line:
-        break
-    trajectories.append(TrajectoryUtil.createTrajectoryFromElements(eval(line)))
+
 
 robot = Robot('robot.cfg')
 
-#robot.FollowTrajectory(trajectories[0], True)
-#robot.FollowTrajectory(trajectories[1], True)
-robot.FollowTrajectory(trajectories[3], True)
-robot.btn.wait_for_bump("enter")
-robot.FollowTrajectory(trajectories[4], True)
-
+robot.FollowTrajectory(robot.trajectories['blocks'], True)
 
 
 # log = open("log.txt", "w")
