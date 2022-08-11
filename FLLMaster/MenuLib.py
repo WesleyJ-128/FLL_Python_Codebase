@@ -108,6 +108,9 @@ def run():
     
     # Reset the gyro angle to zero
     robot.zeroGyro()
+    # Reset odometry
+    robot.resetEncoders()
+    robot.odometry.resetPosition(Pose2d(), robot.getYaw())
     # Start the mission process
     mission.start()
     

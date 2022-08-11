@@ -43,3 +43,7 @@ def a10Command_Key():
     robot.ArcTurn(270, 10, 30)
     robot.DriveAtHeading(270 * 3, 50, 30, True)
     robot.GyroTurn(0)
+
+def a01SteelConstruction():
+    robot.FollowTrajectory(robot.trajectories['steelconstruction'], True)
+    robot.FollowTrajectory(robot.trajectories['returnhome'], True)

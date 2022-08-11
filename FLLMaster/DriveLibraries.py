@@ -131,6 +131,9 @@ class Robot:
         self.steer = MoveSteering(self.LeftMotor, self.RightMotor)
         self.lm = LargeMotor(self.LeftMotor)
         self.rm = LargeMotor(self.RightMotor)
+        # Motor encoder offsets (fake reset)
+        self.leftMotorZero = 0.0
+        self.rightMotorZero = 0.0
 
         # Reset the gyro angle to zero by switching modes
         self.gs._ensure_mode(self.gs.MODE_GYRO_G_A)
@@ -1013,11 +1016,16 @@ class Robot:
     def getWheelSpeeds(self):
         return DifferentialDriveWheelSpeeds(self.lm.speed * self.WheelCircumference / (100 * self.lm.count_per_rot),
             self.rm.speed * self.WheelCircumference / (100 * self.rm.count_per_rot))
-    
+
+    def resetEncoders(self):
+        wheels = self.getWheelPositions()
+        self.leftMotorZero = wheels[0]
+        self.rightMotorZero = wheels[1]
+
     def getWheelPositions(self):
         wheels = []
-        wheels.append(self.lm.degrees * self.WheelCircumference / 36000)
-        wheels.append(self.rm.degrees * self.WheelCircumference / 36000)
+        wheels.append((self.lm.rotations * self.WheelCircumference / 100) - self.leftMotorZero)
+        wheels.append((self.rm.rotations * self.WheelCircumference / 100) - self.rightMotorZero)
         return wheels
 
     def cappedTank(self, left, right):
