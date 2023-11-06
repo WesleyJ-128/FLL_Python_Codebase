@@ -47,3 +47,23 @@ def a10Command_Key():
 def a01SteelConstruction():
     robot.FollowTrajectory(robot.trajectories['steelconstruction'], True)
     robot.FollowTrajectory(robot.trajectories['returnhome'], True)
+
+def a02ExampleMaze():
+    robot.ArcTurn(-90, 25, 25)
+    robot.ArcTurn(180, 25, 25)
+    robot.ArcTurn(-90, 25, 25)
+    robot.ArcTurn(90, 25, 25)
+    robot.DriveAtHeading(90, 50, 25, False)
+    robot.ArcTurn(90, 25, 25)
+    robot.DriveAtHeading(180, 25, 25, True)
+    robot.GyroTurn(0)
+    robot.DriveAtHeading(0, 25, 25, False)
+    robot.ArcTurn(-90, 25, 25)
+    robot.ArcTurn(90, 25, 25)
+    robot.DriveAtHeading(0, 25, 25, True)
+    robot.GyroTurn(180)
+    robot.DriveAtHeading(180, 25, 25, False)
+    robot.ArcTurn(90, 25, 25)
+    robot.DriveAtHeading(270, 50, 25, False)
+    robot.ArcTurn(180, 25, 25)
+    robot.DriveAtHeading(360 + 90, 25, 25, True)
